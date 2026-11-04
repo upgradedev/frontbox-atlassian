@@ -35,7 +35,7 @@ jobs:
             echo "FORGE_API_TOKEN secret absent (fork PR). Skipping Forge lint; manifest gate already passed."
             exit 0
           fi
-          npx --yes @forge/cli@15 lint --non-interactive
+          npx --yes @forge/cli@15 lint
   dast:
     runs-on: ubuntu-latest
     steps:
