@@ -44,7 +44,7 @@ Prerequisites: Node.js 20 or newer, an Atlassian Cloud developer site with Jira 
 
    ```sh
    node scripts/validate-manifest.js
-   node --test tests/
+   node --test
    node scripts/run_triage_eval.js
    ```
 
@@ -135,7 +135,7 @@ Every figure below names the command that produces it. Run the command to reprod
 | Incident correlation precision on the 60-pair synthetic fixture, printed as `precision=` | `node scripts/run_triage_eval.js` |
 | Unsafe dispatch fixtures blocked, printed as `blockedRate=` with batch time `gateBatchMs=` | `node scripts/run_triage_eval.js` |
 | Zero egress keys, Rovo pairing, and surface wiring in `manifest.yml` | `node scripts/validate-manifest.js` |
-| Domain and service behavior, including Writer refusals without approval | `node --test tests/` |
+| Domain and service behavior, including Writer refusals without approval | `node --test` |
 
 The eval fixture is synthetic and says so in its output. It is a regression ruler for the deterministic core, not a field study. No production dispatch data was used.
 
@@ -187,7 +187,7 @@ GDPR data map, short form: the demo processes no real personal data. A live inst
 
 ```sh
 node scripts/validate-manifest.js
-node --test tests/
+node --test
 node scripts/run_triage_eval.js
 node scripts/demo-mirror.js
 ```

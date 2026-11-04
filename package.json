@@ -8,11 +8,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node --test tests/",
-    "test:coverage": "node --experimental-test-coverage --test tests/",
+    "test": "node --test",
+    "test:coverage": "node --experimental-test-coverage --test",
     "validate": "node scripts/validate-manifest.js",
     "eval": "node scripts/run_triage_eval.js",
-    "check": "node scripts/validate-manifest.js && node --test tests/ && node scripts/run_triage_eval.js",
+    "check": "node scripts/validate-manifest.js && node --test && node scripts/run_triage_eval.js",
     "lint:forge": "forge lint",
     "deploy": "forge deploy",
     "install:app": "forge install"

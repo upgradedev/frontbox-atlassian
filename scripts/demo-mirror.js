@@ -8,6 +8,16 @@ import { esc, chip, renderBoardPage } from './board-html.js';
 // demo graph, zero accounts. Host this file anywhere static Node runs.
 // The Forge install remains the product; this mirror proves the core.
 
+const SECURITY_HEADERS = {
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'permissions-policy': 'camera=(), microphone=(), geolocation=()',
+  'cross-origin-embedder-policy': 'require-corp',
+  'cross-origin-resource-policy': 'same-origin',
+  'cache-control': 'no-store',
+};
+
 export async function createDemoServer() {
   const ports = createInMemoryPorts(demoSeed());
   const service = createDispatchService({
@@ -22,21 +32,21 @@ export async function createDemoServer() {
     try {
       const url = new URL(req.url, 'http://localhost');
       if (url.pathname === '/healthz') {
-        res.writeHead(200, { 'content-type': 'text/plain' });
+        res.writeHead(200, { 'content-type': 'text/plain', ...SECURITY_HEADERS });
         res.end('ok');
         return;
       }
       const apiMatch = url.pathname.match(/^\/api\/incidents\/([A-Z]+-\d+)$/);
       if (apiMatch) {
         const state = await service.getDispatchState(apiMatch[1]).catch(() => null);
-        res.writeHead(state ? 200 : 404, { 'content-type': 'application/json' });
+        res.writeHead(state ? 200 : 404, { 'content-type': 'application/json', ...SECURITY_HEADERS });
         res.end(JSON.stringify(state ?? { error: 'unknown incident' }, null, 2));
         return;
       }
       const statusMatch = url.pathname.match(/^\/api\/status\/([A-Z]+-\d+)$/);
       if (statusMatch) {
         const status = await service.getCitizenStatus(statusMatch[1]).catch(() => null);
-        res.writeHead(status ? 200 : 404, { 'content-type': 'application/json' });
+        res.writeHead(status ? 200 : 404, { 'content-type': 'application/json', ...SECURITY_HEADERS });
         res.end(JSON.stringify(status ?? { error: 'unknown incident' }, null, 2));
         return;
       }
@@ -54,7 +64,7 @@ export async function createDemoServer() {
             '<a href="api/status/' + key + '">citizen view</a>',
           ]);
         }
-        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+        res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...SECURITY_HEADERS });
         res.end(renderBoardPage({
           note: 'Synthetic seeded data. GRID-103 blocks on an expired SOP sign-off. GRID-104 blocks on a missing van part. This mirror proves the dispatch core only. The Forge install is the product.',
           columns: ['Incident', 'Summary', 'Gate', 'Blocked reasons', 'Priority', 'Citizen'],
@@ -62,10 +72,10 @@ export async function createDemoServer() {
         }));
         return;
       }
-      res.writeHead(404, { 'content-type': 'text/plain' });
+      res.writeHead(404, { 'content-type': 'text/plain', ...SECURITY_HEADERS });
       res.end('not found');
     } catch (err) {
-      res.writeHead(500, { 'content-type': 'text/plain' });
+      res.writeHead(500, { 'content-type': 'text/plain', ...SECURITY_HEADERS });
       res.end('demo mirror error');
     }
   });

@@ -34,7 +34,7 @@ jobs:
       - name: Pre-deploy gates
         run: |
           node scripts/validate-manifest.js
-          node --test tests/
+          node --test
           node scripts/run_triage_eval.js
           node scripts/uat.js
       - name: Install dependencies and Forge CLI

@@ -26,6 +26,9 @@ test('demo mirror serves health, board, and incident JSON', async () => {
   try {
     const health = await fetch(base + '/healthz');
     assert.equal(health.status, 200);
+    assert.equal(health.headers.get('x-content-type-options'), 'nosniff');
+    assert.equal(health.headers.get('x-frame-options'), 'DENY');
+    assert.ok(String(health.headers.get('content-security-policy')).includes("default-src 'none'"));
     assert.equal(await health.text(), 'ok');
     const board = await fetch(base + '/');
     assert.equal(board.status, 200);
