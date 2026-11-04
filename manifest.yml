@@ -1,0 +1,215 @@
+# FrontBox for Jira Service Management and Confluence
+# Atlassian Codegeist 2026, Apps for Specialized Industries.
+#
+# Zero Egress declaration (Runs on Atlassian eligibility):
+# - No permissions.external fetch, images, scripts, or styles allow-list.
+# - No remotes, no providers, no Connect modules, no web triggers.
+# - Compute runs only in Forge functions. State lives only in Forge hosted
+#   storage (storage:app) and Atlassian app content. Nothing leaves Atlassian.
+# Verified by scripts/validate-manifest.js (fails closed on any egress key).
+#
+# Run "npx forge register" once to replace the placeholder app.id below.
+modules:
+  # JSM Customer Portal Guided SceneProof and ClaimReady Intake.
+  jiraServiceManagement:portalRequestCreatePropertyPanel:
+    - key: frontbox-portal-intake
+      resource: portal-intake
+      resolver:
+        function: frontbox-resolver
+      title: FrontBox guided incident intake
+      unlicensedAccess:
+        - anonymous
+        - customer
+        - unlicensed
+  # Citizen status view on the submitted portal request. Read-only.
+  jiraServiceManagement:portalRequestDetailPanel:
+    - key: frontbox-portal-status
+      resource: portal-status
+      resolver:
+        function: frontbox-resolver
+      title: FrontBox help status
+      unlicensedAccess:
+        - customer
+        - unlicensed
+  # Standby Roster Auto-Failover, dispatch gate, and Vulnerable Citizen
+  # Priority Routing inside the JSM and Jira incident view.
+  jira:issuePanel:
+    - key: frontbox-dispatch-panel
+      resource: dispatch-panel
+      resolver:
+        function: frontbox-resolver
+      title: FrontBox dispatch and standby failover
+  # Confluence Post-Incident Evidence Bundle macro.
+  macro:
+    - key: frontbox-evidence-bundle
+      resource: evidence-bundle
+      resolver:
+        function: frontbox-resolver
+      title: FrontBox post-incident evidence bundle
+      description: Sealed, content-addressed post-incident evidence bundle for a FrontBox dispatch.
+  trigger:
+    - key: frontbox-issue-created-trigger
+      function: frontbox-triage-on-create
+      events:
+        - avi:jira:created:issue
+  scheduledTrigger:
+    - key: frontbox-failover-sweep-trigger
+      function: frontbox-failover-sweep
+      interval: fiveMinute
+  # Deterministic dispatch actions. The same four keys are bound to the
+  # Rovo Agent below and exposed as MCP tools further below.
+  action:
+    - key: verify-safety-sop-and-parts
+      name: Verify safety SOP and spare parts
+      function: frontbox-verify-safety
+      actionVerb: GET
+      description: >
+        Check a JSM incident against its JSM Assets equipment record and
+        required Confluence safety SOP via the Teamwork Graph. Returns
+        whether dispatch is allowed or blocked with each failing reason.
+        Read-only. Never dispatches a crew.
+      inputs:
+        issueKey:
+          title: JSM issue key
+          type: string
+          required: true
+          description: The JSM incident key, for example GRID-123.
+    - key: match-and-reserve-crew
+      name: Match and reserve field crew
+      function: frontbox-reserve-crew
+      actionVerb: TRIGGER
+      description: >
+        Reserve the nearest qualified standby crew for a verified incident
+        under a time-boxed lease. Refuses when the dispatch gate blocks the
+        incident. Never dispatches without a verified gate receipt.
+      inputs:
+        issueKey:
+          title: JSM issue key
+          type: string
+          required: true
+          description: The JSM incident key, for example GRID-123.
+        commanderApproved:
+          title: Commander approved
+          type: boolean
+          required: true
+          description: True only when a human commander approved this exact dispatch.
+    - key: trigger-standby-failover
+      name: Trigger standby failover
+      function: frontbox-standby-failover
+      actionVerb: TRIGGER
+      description: >
+        Fail over an unaccepted crew reservation to the next standby on-call
+        technician after the accept deadline. Returns a sealed failover
+        receipt. Safe to call when no failover is due.
+      inputs:
+        issueKey:
+          title: JSM issue key
+          type: string
+          required: true
+          description: The JSM incident key, for example GRID-123.
+    - key: verify-scene-proof-evidence
+      name: Verify SceneProof evidence
+      function: frontbox-verify-evidence
+      actionVerb: GET
+      description: >
+        Re-check the SceneProof evidence seal and ClaimReady completeness
+        for an incident intake. Returns the evidence hash and any missing
+        item. Read-only.
+      inputs:
+        issueKey:
+          title: JSM issue key
+          type: string
+          required: true
+          description: The JSM incident key, for example GRID-123.
+  function:
+    - key: frontbox-resolver
+      handler: index.handler
+    - key: frontbox-triage-on-create
+      handler: index.triageOnCreate
+    - key: frontbox-failover-sweep
+      handler: index.failoverSweep
+    - key: frontbox-verify-safety
+      handler: index.verifySafetySopAndParts
+    - key: frontbox-reserve-crew
+      handler: index.matchAndReserveCrew
+    - key: frontbox-standby-failover
+      handler: index.triggerStandbyFailover
+    - key: frontbox-verify-evidence
+      handler: index.verifySceneProofEvidence
+  # Assignable Rovo Agent. Paired with rovo:mcp below over identical tools.
+  rovo:agent:
+    - key: frontbox-dispatch-commander
+      name: FrontBox Dispatch Commander
+      description: Coordinates field dispatch, safety SOP checks, and standby failover for utility and roadside incidents in JSM.
+      prompt: >
+        You are the FrontBox Dispatch Commander for a regional utility and
+        roadside assistance operation running on Jira Service Management.
+        You help dispatcher Kostas Nikolaou send the right crew, with the
+        right parts, under the right safety procedure.
+        Rules you must follow:
+        1. Before any dispatch, call verify-safety-sop-and-parts and
+        verify-scene-proof-evidence. Quote the returned status and every
+        blocking reason verbatim. Never claim a dispatch is safe when a
+        tool reports a block.
+        2. Only call match-and-reserve-crew after both checks pass and a
+        human commander has approved. Pass commanderApproved only when the
+        human stated approval for this incident.
+        3. Call trigger-standby-failover only for a reserved incident whose
+        primary crew missed its accept deadline.
+        4. Vulnerable citizens are routed first. Surface the priority lane
+        and next action for every incident you discuss.
+        5. Never invent an asset, SOP, crew, part, or evidence hash. If a
+        tool returns no data, say so and name the missing input.
+      conversationStarters:
+        - Is incident GRID-123 safe to dispatch?
+        - Which vulnerable citizens are waiting longest?
+        - Fail over the unaccepted standby reservation.
+      actions:
+        - verify-safety-sop-and-parts
+        - match-and-reserve-crew
+        - trigger-standby-failover
+        - verify-scene-proof-evidence
+  # MCP server surface. Exposes the same four actions as tools for Rovo
+  # Studio custom agents and external MCP clients. At most one per app.
+  rovo:mcp:
+    - key: frontbox-dispatch-mcp-server
+      name: FrontBox Dispatch MCP Server
+      tools:
+        - verify-safety-sop-and-parts
+        - match-and-reserve-crew
+        - trigger-standby-failover
+        - verify-scene-proof-evidence
+resources:
+  - key: portal-intake
+    path: src/frontend/portal-intake.jsx
+  - key: portal-status
+    path: src/frontend/portal-status.jsx
+  - key: dispatch-panel
+    path: src/frontend/dispatch-panel.jsx
+  - key: evidence-bundle
+    path: src/frontend/evidence-bundle.jsx
+permissions:
+  scopes:
+    - storage:app
+    - read:jira-work
+    - write:jira-work
+    - read:jira-user
+    - read:servicedesk-request
+    - write:servicedesk-request
+    - read:cmdb-object:jira
+    - read:cmdb-schema:jira
+    - read:page:confluence
+    - write:page:confluence
+    - read:graph:issue:jira
+    - read:graph:page:confluence
+    - read:graph:assets-object:atlassian
+    - read:graph:user:atlassian
+    - read:graph:team:atlassian
+app:
+  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+  name: FrontBox for JSM and Confluence
+  runtime:
+    name: nodejs24.x
+    architecture: arm64
+    memoryMB: 256
+    snapshots: false

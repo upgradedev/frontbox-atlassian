@@ -1,0 +1,56 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Validate manifest (Zero Egress, pairing, wiring)
+        run: node scripts/validate-manifest.js
+      - name: Unit and integration tests (dependency-free domain core)
+        run: node --test tests/
+      - name: Triage evaluation harness (J3)
+        run: node scripts/run_triage_eval.js
+      - name: Load smoke (500 gate checks)
+        run: node scripts/load-smoke.js 100
+      - name: Static mirror export smoke
+        run: node scripts/export-mirror.js temp/site && test -f temp/site/index.html
+      - name: Install Forge dependencies
+        run: npm ci --ignore-scripts || npm install --ignore-scripts
+      - name: Forge lint
+        run: npx --yes @forge/cli@15 lint --non-interactive || true
+        continue-on-error: true
+  dast:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Start demo mirror
+        run: |
+          node scripts/demo-mirror.js &
+          for i in $(seq 1 20); do curl -sf http://localhost:4321/healthz && break || sleep 1; done
+      - name: OWASP ZAP baseline against the mirror
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: 'http://localhost:4321/'
+          fail_action: false
+          allow_issue_writing: false
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,31 @@
+{
+  "name": "frontbox-atlassian",
+  "version": "0.1.0",
+  "description": "FrontBox for Jira Service Management and Confluence. Guided citizen intake, safety-gated field dispatch, and standby failover on Atlassian Forge.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test tests/",
+    "test:coverage": "node --experimental-test-coverage --test tests/",
+    "validate": "node scripts/validate-manifest.js",
+    "eval": "node scripts/run_triage_eval.js",
+    "check": "node scripts/validate-manifest.js && node --test tests/ && node scripts/run_triage_eval.js",
+    "lint:forge": "forge lint",
+    "deploy": "forge deploy",
+    "install:app": "forge install"
+  },
+  "dependencies": {
+    "@forge/api": "^8.4.0",
+    "@forge/bridge": "^7.2.1",
+    "@forge/kvs": "^2.1.1",
+    "@forge/react": "^12.4.0",
+    "@forge/resolver": "^2.0.2",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@forge/cli": "^15.0.0"
+  }
+}

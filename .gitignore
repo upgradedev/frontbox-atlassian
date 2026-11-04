@@ -1,0 +1,11 @@
+node_modules/
+temp/
+coverage/
+.forge/
+*.log
+# Workspace coordination files, never shipped (see AGENTS.md).
+AGENTS.md
+STATE.md
+LOG.md
+TRAPS.md
+~/
