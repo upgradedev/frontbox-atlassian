@@ -11,7 +11,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
       - name: Validate manifest (Zero Egress, pairing, wiring)
         run: node scripts/validate-manifest.js
       - name: Unit and integration tests (dependency-free domain core)
@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
       - name: Start demo mirror
         run: |
           node scripts/demo-mirror.js &
