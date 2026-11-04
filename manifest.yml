@@ -207,9 +207,7 @@ permissions:
     - read:graph:team:atlassian
 app:
   id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
-  name: FrontBox for JSM and Confluence
   runtime:
     name: nodejs24.x
     architecture: arm64
     memoryMB: 256
-    snapshots: false

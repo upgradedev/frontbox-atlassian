@@ -47,14 +47,14 @@ jobs:
       - name: Register app once (placeholder app.id only)
         run: |
           if grep -q '00000000-0000-4000-8000-000000000000' manifest.yml; then
-            forge register --non-interactive
+            forge register "FrontBox for JSM and Confluence" -y
           else
             echo "App already registered, skipping register."
           fi
       - name: Forge lint
         run: forge lint
       - name: Deploy
-        run: forge deploy --non-interactive -e "$FORGE_ENV"
+        run: forge deploy -e "$FORGE_ENV"
       - name: Install or upgrade on UAT site (Jira then Confluence)
         run: |
           for product in jira confluence; do
