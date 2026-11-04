@@ -180,7 +180,8 @@ export async function validateRepo(root) {
   const resolverNames = existsSync(resolversPath)
     ? extractResolverNames(await readFile(resolversPath, 'utf8'))
     : [];
-  const frontendFiles = await walk(path.join(root, 'src/frontend'));
+  const frontendFiles = (await walk(path.join(root, 'src/frontend')))
+    .filter((file) => /\.(jsx|js)$/.test(file));
   const frontends = [];
   for (const file of frontendFiles) {
     frontends.push({ name: path.relative(root, file), text: await readFile(file, 'utf8') });
