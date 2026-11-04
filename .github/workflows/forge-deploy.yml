@@ -42,6 +42,7 @@ jobs:
           npm install --ignore-scripts
           npm install --global @forge/cli@15
           forge --version
+          forge settings set usage-analytics true
           forge whoami
       - name: Register app once (placeholder app.id only)
         run: |
