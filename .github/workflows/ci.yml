@@ -35,6 +35,10 @@ jobs:
             echo "FORGE_API_TOKEN secret absent (fork PR). Skipping Forge lint; manifest gate already passed."
             exit 0
           fi
+          if grep -q '00000000-0000-4000-8000-000000000000' manifest.yml; then
+            echo "Placeholder app.id: app not registered yet. Forge lint enforces fully after registration (Forge Deploy workflow commits the real id)."
+            exit 0
+          fi
           npx --yes @forge/cli@15 settings set usage-analytics true
           npx --yes @forge/cli@15 lint
   dast:
