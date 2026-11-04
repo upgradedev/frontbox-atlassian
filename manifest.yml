@@ -14,6 +14,7 @@ modules:
   jiraServiceManagement:portalRequestCreatePropertyPanel:
     - key: frontbox-portal-intake
       resource: portal-intake
+      render: native
       resolver:
         function: fb-resolver
       title: FrontBox guided incident intake
@@ -25,6 +26,7 @@ modules:
   jiraServiceManagement:portalRequestDetailPanel:
     - key: frontbox-portal-status
       resource: portal-status
+      render: native
       resolver:
         function: fb-resolver
       title: FrontBox help status
@@ -36,6 +38,7 @@ modules:
   jira:issuePanel:
     - key: frontbox-dispatch-panel
       resource: dispatch-panel
+      render: native
       resolver:
         function: fb-resolver
       title: FrontBox dispatch and standby failover
@@ -44,6 +47,7 @@ modules:
   macro:
     - key: frontbox-evidence-bundle
       resource: evidence-bundle
+      render: native
       resolver:
         function: fb-resolver
       title: FrontBox post-incident evidence bundle
