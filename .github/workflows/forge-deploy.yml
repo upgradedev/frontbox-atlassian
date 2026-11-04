@@ -1,0 +1,75 @@
+name: Forge Deploy (UAT)
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Forge environment
+        required: true
+        default: production
+        type: choice
+        options:
+          - production
+          - staging
+          - development
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+      FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+      FORGE_SITE: ${{ secrets.FORGE_SITE }}
+      FORGE_ENV: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Guard secrets
+        run: |
+          test -n "$FORGE_EMAIL" || { echo "Missing FORGE_EMAIL secret"; exit 1; }
+          test -n "$FORGE_API_TOKEN" || { echo "Missing FORGE_API_TOKEN secret"; exit 1; }
+          test -n "$FORGE_SITE" || { echo "Missing FORGE_SITE secret (host only, e.g. example.atlassian.net)"; exit 1; }
+      - name: Pre-deploy gates
+        run: |
+          node scripts/validate-manifest.js
+          node --test tests/
+          node scripts/run_triage_eval.js
+          node scripts/uat.js
+      - name: Install dependencies and Forge CLI
+        run: |
+          npm install --ignore-scripts
+          npm install --global @forge/cli@15
+          forge --version
+          forge whoami
+      - name: Register app once (placeholder app.id only)
+        run: |
+          if grep -q '00000000-0000-4000-8000-000000000000' manifest.yml; then
+            forge register --non-interactive
+          else
+            echo "App already registered, skipping register."
+          fi
+      - name: Forge lint
+        run: forge lint
+      - name: Deploy
+        run: forge deploy --non-interactive -e "$FORGE_ENV"
+      - name: Install or upgrade on UAT site (Jira then Confluence)
+        run: |
+          for product in jira confluence; do
+            echo "== $product =="
+            forge install --non-interactive --site "$FORGE_SITE" --product "$product" -e "$FORGE_ENV" \
+              || forge install --upgrade --non-interactive --site "$FORGE_SITE" --product "$product" -e "$FORGE_ENV"
+          done
+          forge install list -e "$FORGE_ENV" || true
+      - name: Commit registered app.id back
+        run: |
+          if ! git diff --quiet manifest.yml; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add manifest.yml
+            git commit -m "chore(forge): register app id"
+            git push
+          else
+            echo "manifest.yml unchanged"
+          fi

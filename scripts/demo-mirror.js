@@ -2,6 +2,7 @@ import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInMemoryPorts, createDispatchService, demoSeed, demoIntake } from '../src/frontbox/index.js';
+import { esc, chip, renderBoardPage } from './board-html.js';
 
 // Anonymous judge mirror. Same dispatch service as the Forge app, seeded
 // demo graph, zero accounts. Host this file anywhere static Node runs.
@@ -44,23 +45,21 @@ export async function createDemoServer() {
         const rows = [];
         for (const key of keys) {
           const state = await service.getDispatchState(key);
-          rows.push(
-            '<tr><td>' + esc(key) + '</td><td>' + esc(state.incident.summary) + '</td><td>'
-            + (state.gate.allowed ? 'ready for commander approval' : 'blocked') + '</td><td>'
-            + esc(state.gate.blockedReasons.join(' ') || 'none') + '</td><td>'
-            + esc(state.routing ? state.routing.lane : 'no intake yet') + '</td></tr>',
-          );
+          rows.push([
+            '<a href="api/incidents/' + key + '">' + esc(key) + '</a>',
+            esc(state.incident.summary),
+            state.gate.allowed ? chip('ready for commander approval', 'ready') : chip('blocked', 'blocked'),
+            esc(state.gate.blockedReasons.join(' ') || 'none'),
+            esc(state.routing ? state.routing.lane : 'no intake yet'),
+            '<a href="api/status/' + key + '">citizen view</a>',
+          ]);
         }
         res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
-        res.end(
-          '<!doctype html><title>FrontBox demo mirror</title>'
-          + '<h1>FrontBox for JSM and Confluence: demo mirror</h1>'
-          + '<p>FrontBox checks JSM incidents against Confluence safety SOPs and spare parts via Teamwork Graph before dispatching field crews with automatic standby failover.</p>'
-          + '<p>Synthetic seeded data. GRID-103 blocks on an expired SOP sign-off. GRID-104 blocks on a missing van part.</p>'
-          + '<table border="1" cellspacing="0" cellpadding="6"><tr><th>Incident</th><th>Summary</th><th>Gate</th><th>Blocked reasons</th><th>Priority</th></tr>'
-          + rows.join('') + '</table>'
-          + '<p>JSON: /api/incidents/GRID-101 and citizen view /api/status/GRID-101</p>',
-        );
+        res.end(renderBoardPage({
+          note: 'Synthetic seeded data. GRID-103 blocks on an expired SOP sign-off. GRID-104 blocks on a missing van part. This mirror proves the dispatch core only. The Forge install is the product.',
+          columns: ['Incident', 'Summary', 'Gate', 'Blocked reasons', 'Priority', 'Citizen'],
+          rows,
+        }));
         return;
       }
       res.writeHead(404, { 'content-type': 'text/plain' });
@@ -71,10 +70,6 @@ export async function createDemoServer() {
     }
   });
   return server;
-}
-
-function esc(text) {
-  return String(text ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

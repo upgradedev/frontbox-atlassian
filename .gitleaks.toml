@@ -1,0 +1,8 @@
+# False positives: long Forge module names in README tables match the
+# atlassian-api-token entropy rule. Allowlist only those literals.
+[allowlist]
+description = "Forge module names, not tokens"
+regexes = [
+  "jiraServiceManagement:portalRequestDetailPanel",
+  "jiraServiceManagement:portalRequestCreatePropertyPanel",
+]

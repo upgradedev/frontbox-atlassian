@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInMemoryPorts, createDispatchService, demoSeed, demoIntake, DEMO_NOW } from '../src/frontbox/index.js';
+import { esc, chip, renderBoardPage } from './board-html.js';
 
 // Static export of the demo mirror for any static host (D-1 prep).
 // Writes temp/site/ by default: index.html plus one JSON file per
@@ -20,25 +21,21 @@ export async function exportMirror(outDir) {
     const status = await service.getCitizenStatus(key);
     await writeFile(path.join(outDir, 'api', key + '.json'), JSON.stringify(state, null, 2) + '\n', 'utf8');
     await writeFile(path.join(outDir, 'api', key + '-status.json'), JSON.stringify(status, null, 2) + '\n', 'utf8');
-    rows.push(
-      '<tr><td>' + key + '</td><td>' + esc(state.incident.summary) + '</td><td>'
-      + (state.gate.allowed ? 'ready for commander approval' : 'blocked') + '</td><td>'
-      + esc(status.spoken.text) + '</td><td><a href="api/' + key + '.json">dispatcher JSON</a> '
-      + '<a href="api/' + key + '-status.json">citizen JSON</a></td></tr>',
-    );
+    rows.push([
+      esc(key),
+      esc(state.incident.summary),
+      state.gate.allowed ? chip('ready for commander approval', 'ready') : chip('blocked', 'blocked'),
+      esc(status.spoken.text),
+      '<a href="api/' + key + '.json">dispatcher JSON</a> <a href="api/' + key + '-status.json">citizen JSON</a>',
+    ]);
   }
-  const html = '<!doctype html><title>FrontBox demo mirror (static export)</title>'
-    + '<h1>FrontBox for JSM and Confluence: demo mirror</h1>'
-    + '<p>FrontBox checks JSM incidents against Confluence safety SOPs and spare parts via Teamwork Graph before dispatching field crews with automatic standby failover.</p>'
-    + '<p>Static export of the seeded demo at ' + DEMO_NOW + '. Synthetic data. GRID-103 blocks on an expired SOP sign-off. GRID-104 blocks on a missing van part.</p>'
-    + '<table border="1" cellspacing="0" cellpadding="6"><tr><th>Incident</th><th>Summary</th><th>Gate</th><th>Spoken receipt</th><th>Data</th></tr>'
-    + rows.join('') + '</table>';
+  const html = renderBoardPage({
+    note: 'Static export of the seeded demo at ' + DEMO_NOW + '. Synthetic data. GRID-103 blocks on an expired SOP sign-off. GRID-104 blocks on a missing van part. This mirror proves the dispatch core only. The Forge install is the product.',
+    columns: ['Incident', 'Summary', 'Gate', 'Spoken receipt', 'Data'],
+    rows,
+  });
   await writeFile(path.join(outDir, 'index.html'), html + '\n', 'utf8');
   return { outDir, incidents: keys, files: 1 + keys.length * 2 };
-}
-
-function esc(text) {
-  return String(text ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

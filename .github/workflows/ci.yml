@@ -12,7 +12,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-          cache: npm
       - name: Validate manifest (Zero Egress, pairing, wiring)
         run: node scripts/validate-manifest.js
       - name: Unit and integration tests (dependency-free domain core)
@@ -45,6 +44,7 @@ jobs:
           target: 'http://localhost:4321/'
           fail_action: false
           allow_issue_writing: false
+          artifact_name: zap-scan-results
   secret-scan:
     runs-on: ubuntu-latest
     steps:
