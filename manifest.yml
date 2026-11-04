@@ -46,7 +46,8 @@ modules:
       resolver:
         function: frontbox-resolver
       title: FrontBox post-incident evidence bundle
-      description: Sealed, content-addressed post-incident evidence bundle for a FrontBox dispatch.
+      description: Sealed, content-addressed post-incident evidence bundle for a
+        FrontBox dispatch.
   trigger:
     - key: frontbox-issue-created-trigger
       function: frontbox-triage-on-create
@@ -65,9 +66,9 @@ modules:
       actionVerb: GET
       description: >
         Check a JSM incident against its JSM Assets equipment record and
-        required Confluence safety SOP via the Teamwork Graph. Returns
-        whether dispatch is allowed or blocked with each failing reason.
-        Read-only. Never dispatches a crew.
+        required Confluence safety SOP via the Teamwork Graph. Returns whether
+        dispatch is allowed or blocked with each failing reason. Read-only.
+        Never dispatches a crew.
       inputs:
         issueKey:
           title: JSM issue key
@@ -79,9 +80,9 @@ modules:
       function: frontbox-reserve-crew
       actionVerb: TRIGGER
       description: >
-        Reserve the nearest qualified standby crew for a verified incident
-        under a time-boxed lease. Refuses when the dispatch gate blocks the
-        incident. Never dispatches without a verified gate receipt.
+        Reserve the nearest qualified standby crew for a verified incident under
+        a time-boxed lease. Refuses when the dispatch gate blocks the incident.
+        Never dispatches without a verified gate receipt.
       inputs:
         issueKey:
           title: JSM issue key
@@ -99,8 +100,8 @@ modules:
       actionVerb: TRIGGER
       description: >
         Fail over an unaccepted crew reservation to the next standby on-call
-        technician after the accept deadline. Returns a sealed failover
-        receipt. Safe to call when no failover is due.
+        technician after the accept deadline. Returns a sealed failover receipt.
+        Safe to call when no failover is due.
       inputs:
         issueKey:
           title: JSM issue key
@@ -112,9 +113,9 @@ modules:
       function: frontbox-verify-evidence
       actionVerb: GET
       description: >
-        Re-check the SceneProof evidence seal and ClaimReady completeness
-        for an incident intake. Returns the evidence hash and any missing
-        item. Read-only.
+        Re-check the SceneProof evidence seal and ClaimReady completeness for an
+        incident intake. Returns the evidence hash and any missing item.
+        Read-only.
       inputs:
         issueKey:
           title: JSM issue key
@@ -140,26 +141,24 @@ modules:
   rovo:agent:
     - key: frontbox-dispatch-commander
       name: FrontBox Dispatch Commander
-      description: Coordinates field dispatch, safety SOP checks, and standby failover for utility and roadside incidents in JSM.
+      description: Coordinates field dispatch, safety SOP checks, and standby failover
+        for utility and roadside incidents in JSM.
       prompt: >
         You are the FrontBox Dispatch Commander for a regional utility and
-        roadside assistance operation running on Jira Service Management.
-        You help dispatcher Kostas Nikolaou send the right crew, with the
-        right parts, under the right safety procedure.
-        Rules you must follow:
-        1. Before any dispatch, call verify-safety-sop-and-parts and
+        roadside assistance operation running on Jira Service Management. You
+        help dispatcher Kostas Nikolaou send the right crew, with the right
+        parts, under the right safety procedure. Rules you must follow: 1.
+        Before any dispatch, call verify-safety-sop-and-parts and
         verify-scene-proof-evidence. Quote the returned status and every
-        blocking reason verbatim. Never claim a dispatch is safe when a
-        tool reports a block.
-        2. Only call match-and-reserve-crew after both checks pass and a
-        human commander has approved. Pass commanderApproved only when the
-        human stated approval for this incident.
-        3. Call trigger-standby-failover only for a reserved incident whose
-        primary crew missed its accept deadline.
-        4. Vulnerable citizens are routed first. Surface the priority lane
-        and next action for every incident you discuss.
-        5. Never invent an asset, SOP, crew, part, or evidence hash. If a
-        tool returns no data, say so and name the missing input.
+        blocking reason verbatim. Never claim a dispatch is safe when a tool
+        reports a block. 2. Only call match-and-reserve-crew after both checks
+        pass and a human commander has approved. Pass commanderApproved only
+        when the human stated approval for this incident. 3. Call
+        trigger-standby-failover only for a reserved incident whose primary crew
+        missed its accept deadline. 4. Vulnerable citizens are routed first.
+        Surface the priority lane and next action for every incident you
+        discuss. 5. Never invent an asset, SOP, crew, part, or evidence hash. If
+        a tool returns no data, say so and name the missing input.
       conversationStarters:
         - Is incident GRID-123 safe to dispatch?
         - Which vulnerable citizens are waiting longest?
@@ -206,7 +205,7 @@ permissions:
     - read:graph:user:atlassian
     - read:graph:team:atlassian
 app:
-  id: ari:cloud:ecosystem::app/00000000-0000-4000-8000-000000000000
+  id: ari:cloud:ecosystem::app/80b10869-2c76-40ec-bea0-fcdb3d423062
   runtime:
     name: nodejs24.x
     architecture: arm64

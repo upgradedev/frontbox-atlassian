@@ -1,10 +1,14 @@
 # FrontBox for JSM and Confluence
 
+[![CI](https://github.com/upgradedev/frontbox-atlassian/actions/workflows/ci.yml/badge.svg)](https://github.com/upgradedev/frontbox-atlassian/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/upgradedev/frontbox-atlassian/actions/workflows/codeql.yml/badge.svg)](https://github.com/upgradedev/frontbox-atlassian/actions/workflows/codeql.yml)
+[![Licence: MIT](https://img.shields.io/github/license/upgradedev/frontbox-atlassian)](LICENSE)
+
 **FrontBox checks JSM incidents against Confluence safety SOPs and spare parts via Teamwork Graph before dispatching field crews with automatic standby failover.**
 
 Kostas Nikolaou, Grid and Field Service Dispatcher at a regional power and water utility, coordinates high-voltage outage crews and emergency standby vans in Jira Service Management (JSM). FrontBox sits inside the JSM incident he already opens. It blocks an unsafe or under-equipped van roll before wheels move, routes vulnerable citizens first, and fails over to the standby on-call technician when the primary crew misses its accept deadline.
 
-Licence: [MIT](LICENSE). Status: pre-release. The Forge app is not yet deployed to a public Atlassian site. Install steps below need your own Atlassian Cloud developer site. The dispatch core is fully testable today with the commands under Test.
+Licence: [MIT](LICENSE). Status: pre-release. Try the seeded dispatch core now at the [live demo mirror](https://upgradedev.github.io/frontbox-atlassian/). The Forge app is not yet deployed to a public Atlassian site. Install steps below need your own Atlassian Cloud developer site. The dispatch core is fully testable today with the commands under Test.
 
 ## Contents
 
