@@ -15,7 +15,7 @@ modules:
     - key: frontbox-portal-intake
       resource: portal-intake
       resolver:
-        function: frontbox-resolver
+        function: fb-resolver
       title: FrontBox guided incident intake
       unlicensedAccess:
         - anonymous
@@ -26,7 +26,7 @@ modules:
     - key: frontbox-portal-status
       resource: portal-status
       resolver:
-        function: frontbox-resolver
+        function: fb-resolver
       title: FrontBox help status
       unlicensedAccess:
         - customer
@@ -37,32 +37,33 @@ modules:
     - key: frontbox-dispatch-panel
       resource: dispatch-panel
       resolver:
-        function: frontbox-resolver
+        function: fb-resolver
       title: FrontBox dispatch and standby failover
+      icon: resource:dispatch-panel;frontbox-icon.svg
   # Confluence Post-Incident Evidence Bundle macro.
   macro:
     - key: frontbox-evidence-bundle
       resource: evidence-bundle
       resolver:
-        function: frontbox-resolver
+        function: fb-resolver
       title: FrontBox post-incident evidence bundle
       description: Sealed, content-addressed post-incident evidence bundle for a
         FrontBox dispatch.
   trigger:
     - key: frontbox-issue-created-trigger
-      function: frontbox-triage-on-create
+      function: fb-triage
       events:
         - avi:jira:created:issue
   scheduledTrigger:
-    - key: frontbox-failover-sweep-trigger
-      function: frontbox-failover-sweep
+    - key: fb-sweep-trigger
+      function: fb-sweep
       interval: fiveMinute
   # Deterministic dispatch actions. The same four keys are bound to the
   # Rovo Agent below and exposed as MCP tools further below.
   action:
     - key: verify-safety-sop-and-parts
       name: Verify safety SOP and spare parts
-      function: frontbox-verify-safety
+      function: fb-verify-safety
       actionVerb: GET
       description: >
         Check a JSM incident against its JSM Assets equipment record and
@@ -77,7 +78,7 @@ modules:
           description: The JSM incident key, for example GRID-123.
     - key: match-and-reserve-crew
       name: Match and reserve field crew
-      function: frontbox-reserve-crew
+      function: fb-reserve
       actionVerb: TRIGGER
       description: >
         Reserve the nearest qualified standby crew for a verified incident under
@@ -96,7 +97,7 @@ modules:
           description: True only when a human commander approved this exact dispatch.
     - key: trigger-standby-failover
       name: Trigger standby failover
-      function: frontbox-standby-failover
+      function: fb-failover
       actionVerb: TRIGGER
       description: >
         Fail over an unaccepted crew reservation to the next standby on-call
@@ -110,7 +111,7 @@ modules:
           description: The JSM incident key, for example GRID-123.
     - key: verify-scene-proof-evidence
       name: Verify SceneProof evidence
-      function: frontbox-verify-evidence
+      function: fb-verify-evidence
       actionVerb: GET
       description: >
         Re-check the SceneProof evidence seal and ClaimReady completeness for an
@@ -123,19 +124,19 @@ modules:
           required: true
           description: The JSM incident key, for example GRID-123.
   function:
-    - key: frontbox-resolver
+    - key: fb-resolver
       handler: index.handler
-    - key: frontbox-triage-on-create
+    - key: fb-triage
       handler: index.triageOnCreate
-    - key: frontbox-failover-sweep
+    - key: fb-sweep
       handler: index.failoverSweep
-    - key: frontbox-verify-safety
+    - key: fb-verify-safety
       handler: index.verifySafetySopAndParts
-    - key: frontbox-reserve-crew
+    - key: fb-reserve
       handler: index.matchAndReserveCrew
-    - key: frontbox-standby-failover
+    - key: fb-failover
       handler: index.triggerStandbyFailover
-    - key: frontbox-verify-evidence
+    - key: fb-verify-evidence
       handler: index.verifySceneProofEvidence
   # Assignable Rovo Agent. Paired with rovo:mcp below over identical tools.
   rovo:agent:
