@@ -28,6 +28,21 @@ test('app factory exposes every manifest handler name', async () => {
   }
 });
 
+test('app factory tolerates default-wrapped Forge singletons', async () => {
+  const data = new Map();
+  const store = { async get(k) { return data.get(k) ?? null; }, async set(k, v) { data.set(k, v); } };
+  await seedDemoWorkspace(store);
+  const app = createApp({
+    api: { default: failingApi },
+    store: { default: store },
+    route: fakeRoute,
+    Resolver: { default: FakeResolver },
+    clock: () => '2026-12-01T09:00:00.000Z',
+  });
+  const verified = await app.verifySafetySopAndParts({ payload: { issueKey: 'GRID-101' } });
+  assert.equal(verified.status, 'READY_FOR_COMMANDER_APPROVAL');
+});
+
 test('full judge flow through production wiring fakes', async () => {
   const app = await makeApp();
   const triage = await app.triageOnCreate({ issue: { key: 'GRID-104' } });

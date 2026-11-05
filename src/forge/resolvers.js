@@ -5,10 +5,13 @@ import { seedDemoWorkspace } from './seed.js';
 // is presentation only and is never trusted. The Resolver class is
 // injected from src/index.js so definitions run in plain Node tests.
 export function createResolver({ service, store, Resolver }) {
-  if (typeof Resolver !== 'function') {
+  // Bundled Forge code may hand us the CJS interop wrapper
+  // ({ default: ResolverClass }) instead of the class itself.
+  const ResolverClass = Resolver?.default ?? Resolver;
+  if (typeof ResolverClass !== 'function') {
     throw new TypeError('createResolver requires the Resolver class (inject from @forge/resolver in src/index.js)');
   }
-  const resolver = new Resolver();
+  const resolver = new ResolverClass();
 
   resolver.define('getDispatchState', async ({ payload }) => {
     return service.getDispatchState(payload.issueKey);

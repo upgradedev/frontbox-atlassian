@@ -118,6 +118,18 @@ test('resolver definitions drive intake, reserve, failover, and publish', async 
   assert.equal(published.page.published, false);
 });
 
+test('resolver accepts a default-wrapped Resolver class (bundler interop)', async () => {
+  class FakeResolver {
+    constructor() { this.defs = new Map(); }
+    define(name, fn) { this.defs.set(name, fn); }
+    getDefinitions() { return Object.fromEntries(this.defs); }
+  }
+  const { service } = makeService();
+  const store = { data: new Map(), async get(k) { return this.data.get(k) ?? null; }, async set(k, v) { this.data.set(k, v); } };
+  const resolver = createResolver({ service, store, Resolver: { default: FakeResolver } });
+  assert.equal(typeof resolver.getDefinitions().getCitizenStatus, 'function');
+});
+
 test('graph fetch degrades to null on API failure and picks SOP pages', async () => {
   const badApi = { asUser: () => ({ requestTeamworkGraph: async () => { throw new Error('down'); } }) };
   assert.equal(await fetchLinkedObjects(badApi, 'ari:cloud:jira::issue/1'), null);

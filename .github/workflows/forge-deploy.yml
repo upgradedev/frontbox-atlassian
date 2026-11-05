@@ -47,7 +47,8 @@ jobs:
       - name: Register app once (placeholder app.id only)
         run: |
           if grep -q '00000000-0000-4000-8000-000000000000' manifest.yml; then
-            forge register "FrontBox for JSM and Confluence" -y
+            echo "Placeholder app.id found. Register once interactively (Developer Space prompt needs a TTY): forge register \"FrontBox for JSM and Confluence\" -y, commit manifest.yml, then re-run."
+            exit 1
           else
             echo "App already registered, skipping register."
           fi
@@ -55,22 +56,18 @@ jobs:
         run: forge lint
       - name: Deploy
         run: forge deploy -e "$FORGE_ENV"
-      - name: Install or upgrade on UAT site (Jira then Confluence)
+      - name: Install or upgrade on UAT site (Jira required, Confluence when activated)
         run: |
-          for product in jira confluence; do
-            echo "== $product =="
-            forge install --non-interactive --site "$FORGE_SITE" --product "$product" -e "$FORGE_ENV" \
-              || forge install --upgrade --non-interactive --site "$FORGE_SITE" --product "$product" -e "$FORGE_ENV"
-          done
-          forge install list -e "$FORGE_ENV" || true
-      - name: Commit registered app.id back
-        run: |
-          if ! git diff --quiet manifest.yml; then
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add manifest.yml
-            git commit -m "chore(forge): register app id"
-            git push
+          install_product() {
+            forge install --non-interactive --site "$FORGE_SITE" --product "$1" -e "$FORGE_ENV" \
+              || forge install --upgrade --non-interactive --site "$FORGE_SITE" --product "$1" -e "$FORGE_ENV"
+          }
+          echo "== jira (required) =="
+          install_product jira
+          echo "== confluence (required once the product is activated on the site) =="
+          if install_product confluence; then
+            echo "Confluence installed."
           else
-            echo "manifest.yml unchanged"
+            echo "::warning::Confluence install failed. If Confluence is not activated on the UAT site, an org admin must add the Confluence product first, then re-run this workflow. The Jira install above is unaffected."
           fi
+          forge install list -e "$FORGE_ENV"
