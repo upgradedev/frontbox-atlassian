@@ -4,7 +4,16 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
   - package-ecosystem: npm
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Forge UI Kit expects React 18 (see UI Kit dependencies doc).
+      - dependency-name: 'react'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '*'
+        update-types: ['version-update:semver-major']
