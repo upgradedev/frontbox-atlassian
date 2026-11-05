@@ -18,7 +18,8 @@ export function renderBoardPage({ note, columns, rows }) {
     + '<title>FrontBox demo mirror</title><style>'
     + 'body{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:24px auto;max-width:1100px;padding:0 16px;color:#172b4d;line-height:1.45}'
     + 'h1{font-size:22px;margin:0 0 8px} p{max-width:75ch}'
-    + 'table{border-collapse:collapse;width:100%;margin-top:16px;font-size:14px}'
+    + '.table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}'
+    + 'table{border-collapse:collapse;width:100%;min-width:640px;margin-top:16px;font-size:14px}'
     + 'th,td{border:1px solid #dfe1e6;padding:8px;text-align:left;vertical-align:top}'
     + 'th{background:#f4f5f7}'
     + '.chip{display:inline-block;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:600}'
@@ -27,6 +28,6 @@ export function renderBoardPage({ note, columns, rows }) {
     + '<h1>FrontBox for JSM and Confluence: demo mirror</h1>'
     + '<p><strong>FrontBox checks JSM incidents against Confluence safety SOPs and spare parts via Teamwork Graph before dispatching field crews with automatic standby failover.</strong></p>'
     + '<p>' + note + '</p>'
-    + '<table><tr>' + head + '</tr>' + body + '</table>'
+    + '<div class="table-wrap"><table><tr>' + head + '</tr>' + body + '</table></div>'
     + '</body></html>';
 }

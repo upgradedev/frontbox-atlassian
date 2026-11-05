@@ -19,6 +19,7 @@ test('static export writes a linked board and per-incident JSON', async () => {
   assert.equal(result.files, 11);
   const html = await readFile(path.join(dir, 'index.html'), 'utf8');
   assert.ok(html.includes('GRID-104'));
+  assert.ok(html.includes('table-wrap'));
   assert.ok(html.includes('api/GRID-101-status.json'));
   const status = JSON.parse(await readFile(path.join(dir, 'api/GRID-101-status.json'), 'utf8'));
   assert.equal(status.lane, 'P0');

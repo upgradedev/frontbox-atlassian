@@ -54,13 +54,13 @@ Prerequisites: Node.js 20 or newer, an Atlassian Cloud developer site with Jira 
 
    Expected: three PASS lines. The eval prints precision and the unsafe-dispatch blocked rate.
 
-3. Register your copy of the app once. This replaces the placeholder `app.id` in `manifest.yml`.
+3. Register your own copy of the app once. The committed `app.id` belongs to our UAT app, so remove the `id:` line under `app:` in `manifest.yml` first, then register (first run asks you to name a Developer Space).
 
    ```sh
-   npx forge register
+   npx forge register "FrontBox for JSM and Confluence" -y
    ```
 
-   Expected: `manifest.yml` now carries your app id.
+   Expected: `manifest.yml` now carries your new app id.
 
 4. Deploy and install into your developer site.
 
@@ -198,7 +198,7 @@ node scripts/demo-mirror.js
 
 The first three commands need no install and no Atlassian account. The mirror then serves seeded incidents at `http://localhost:4321`, with dispatcher JSON at `/api/incidents/GRID-101`, citizen JSON at `/api/status/GRID-101`, and health at `/healthz`.
 
-Forge-side checks after `npm install` and `npx forge register`: `npx forge lint`. This step needs your Atlassian account and has not been run for this pre-release tree.
+Forge-side checks run in CI on every push (authenticated `forge lint`) and in the Forge Deploy workflow. To repeat them with your own Atlassian account: `npm install`, set `FORGE_EMAIL` and `FORGE_API_TOKEN`, then `npx @forge/cli@15 lint`.
 
 ## Repo layout
 
