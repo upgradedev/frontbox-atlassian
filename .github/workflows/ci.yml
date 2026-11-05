@@ -12,6 +12,7 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
+          cache: npm
       - name: Validate manifest (Zero Egress, pairing, wiring)
         run: node scripts/validate-manifest.js
       - name: Unit and integration tests (dependency-free domain core)
@@ -25,7 +26,7 @@ jobs:
       - name: Static mirror export smoke
         run: node scripts/export-mirror.js temp/site && test -f temp/site/index.html
       - name: Install Forge dependencies
-        run: npm ci --ignore-scripts || npm install --ignore-scripts
+        run: npm ci --ignore-scripts
       - name: Forge lint
         env:
           FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}

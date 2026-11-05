@@ -39,7 +39,7 @@ jobs:
           node scripts/uat.js
       - name: Install dependencies and Forge CLI
         run: |
-          npm install --ignore-scripts
+          npm ci --ignore-scripts
           npm install --global @forge/cli@15
           forge --version
           forge settings set usage-analytics true
