@@ -20,11 +20,13 @@ export function createDispatchService({ reader, writer, clock }) {
   // verify step and the reserve step. Approval itself is enforced in
   // reserveCrew, which refuses without the flag and the matching hash.
   async function loadGateContext(issueKey) {
-    const incident = await reader.getIncident(issueKey);
+    const [incident, asset, roster] = await Promise.all([
+      reader.getIncident(issueKey),
+      reader.getLinkedAsset(issueKey),
+      reader.getRoster(),
+    ]);
     if (!incident) throw new Error('Unknown incident ' + issueKey);
-    const asset = await reader.getLinkedAsset(issueKey);
     const sop = asset ? await reader.getSafetySop(asset.assetKey) : null;
-    const roster = await reader.getRoster();
     const crew = selectCrew(roster, {
       hazardClass: incident.hazardClass,
       requiredParts: asset ? asset.requiredParts : [],
@@ -95,8 +97,12 @@ export function createDispatchService({ reader, writer, clock }) {
       const w = requireWriter();
       const lease = await reader.getLease(issueKey);
       if (!lease) throw new Error('No lease found for ' + issueKey);
-      const accepted = acceptLease(lease, crewId, now());
+      const targetCrewId = crewId ?? lease.crewId;
+      const accepted = acceptLease(lease, targetCrewId, now());
       await w.saveLease(accepted);
+      await w.postReceipt(issueKey,
+        'FrontBox: crew ' + accepted.crewId + ' accepted lease ' + accepted.leaseId
+        + ' at ' + accepted.acceptedAt + '.');
       return accepted;
     },
 
@@ -104,9 +110,11 @@ export function createDispatchService({ reader, writer, clock }) {
       const w = requireWriter();
       const lease = await reader.getLease(issueKey);
       if (!lease) return { changed: false, lease: null, receipt: null, reason: 'No lease found for ' + issueKey + '.' };
-      const incident = await reader.getIncident(issueKey);
-      const asset = await reader.getLinkedAsset(issueKey);
-      const roster = await reader.getRoster();
+      const [incident, asset, roster] = await Promise.all([
+        reader.getIncident(issueKey),
+        reader.getLinkedAsset(issueKey),
+        reader.getRoster(),
+      ]);
       const result = failoverIfDue(lease, roster, {
         hazardClass: incident ? incident.hazardClass : 'unknown',
         requiredParts: asset ? asset.requiredParts : [],
@@ -148,9 +156,11 @@ export function createDispatchService({ reader, writer, clock }) {
     },
 
     async getDispatchState(issueKey) {
-      const ctx = await loadGateContext(issueKey);
-      const record = await reader.getIntakeRecord(issueKey);
-      const lease = await reader.getLease(issueKey);
+      const [ctx, record, lease] = await Promise.all([
+        loadGateContext(issueKey),
+        reader.getIntakeRecord(issueKey),
+        reader.getLease(issueKey),
+      ]);
       const routing = record ? record.routing : null;
       return {
         incident: ctx.incident,

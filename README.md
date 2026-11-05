@@ -140,6 +140,8 @@ Every figure below names the command that produces it. Run the command to reprod
 | Unsafe dispatch fixtures blocked, printed as `blockedRate=` with batch time `gateBatchMs=` | `node scripts/run_triage_eval.js` |
 | Zero egress keys, Rovo pairing, and surface wiring in `manifest.yml` | `node scripts/validate-manifest.js` |
 | Domain and service behavior, including Writer refusals without approval | `node --test` |
+| Nine-step end-to-end judge UAT journey across intake, gate, failover, citizen status, bundle, trigger, and HTTP mirror | `node scripts/uat.js` |
+| 500-evaluation dispatch gate load smoke budget | `node scripts/load-smoke.js 100` |
 
 The eval fixture is synthetic and says so in its output. It is a regression ruler for the deterministic core, not a field study. No production dispatch data was used.
 
@@ -168,10 +170,10 @@ Six-pillar self-review (operational excellence, security, reliability, performan
 
 | Pillar | What is in place | Residual gap |
 | --- | --- | --- |
-| Operational excellence | CI runs manifest gate, tests, and eval on every push | No live Forge deploy pipeline yet. Owner site step remains manual |
-| Security | Zero egress manifest, redaction before storage, hash-bound approvals | No third-party penetration test. DAST against a live Forge install is still owed |
-| Reliability | Fail-closed gate, idempotent seed, lease failover sweep | Live Assets AQL and SOP sign-off reads run behind per-site admin config in Forge storage. Unmapped sites block safely. The live calls are unit-tested with fakes and not yet exercised on a real site |
-| Performance | Gate batch measured by the eval script on every run | No load test at city-scale incident volume |
+| Operational excellence | CI runs manifest gate, tests, 9-step UAT, eval, load smoke, CodeQL, OWASP ZAP DAST, and gitleaks on every push; `.github/workflows/forge-deploy.yml` deploys and smoke-tests Jira on `upgradegr.atlassian.net` | Confluence product activation on the UAT site and Developer Console sharing link remain owner console steps |
+| Security | Zero egress manifest, project-scoped multi-desk storage isolation (`GRID` vs `ROAD`), redaction before storage, hash-bound approvals, OWASP ZAP baseline in CI | No third-party penetration test against a live Forge tenant |
+| Reliability | Fail-closed gate, idempotent seed, parallel graph reads (`Promise.all`), happy-path crew lease acceptance, and 5-minute lease failover sweep | Live Assets AQL and SOP sign-off reads run behind per-site or per-project admin config in Forge storage (`frontbox:config` / `frontbox:config:<SCOPE>`). Unmapped sites block safely |
+| Performance | Gate batch measured by `run_triage_eval.js` (`gateBatchMs=2`) and `load-smoke.js 100` (500 checks in under 100 ms) on every CI run | Multi-thousand concurrent webhook burst testing on a live Jira Cloud site is not yet measured |
 | Cost | Forge hosted compute and storage only. No external services to pay for. Idle cost ESTIMATE $0 per month inside the Forge free allowance (200,000 GB-seconds per app per month; overage $0.000025 per GB-second), checked 2026-11-03 against [Forge platform pricing](https://developer.atlassian.com/platform/forge/forge-platform-pricing/). FrontBox functions run at 256 MB with millisecond gate checks | Utility-scale incident volume not yet modelled past the free allowance. Rovo LLM credits bill separately and depend on agent chat volume |
 | Sustainability | Blocked wasted truck rolls are the core saving | Fuel saving per blocked roll is not yet measured in the field |
 
@@ -192,11 +194,13 @@ GDPR data map, short form: the demo processes no real personal data. A live inst
 ```sh
 node scripts/validate-manifest.js
 node --test
+node scripts/uat.js
 node scripts/run_triage_eval.js
+node scripts/load-smoke.js 100
 node scripts/demo-mirror.js
 ```
 
-The first three commands need no install and no Atlassian account. The mirror then serves seeded incidents at `http://localhost:4321`, with dispatcher JSON at `/api/incidents/GRID-101`, citizen JSON at `/api/status/GRID-101`, and health at `/healthz`.
+The first five commands need no install and no Atlassian account. The mirror then serves the interactive Command Center and seeded incidents at `http://localhost:4321`, with dispatcher JSON at `/api/incidents/GRID-101`, citizen JSON at `/api/status/GRID-101`, interactive simulator script at `/mirror-app.js`, and health at `/healthz`.
 
 Forge-side checks run in CI on every push (authenticated `forge lint`) and in the Forge Deploy workflow. To repeat them with your own Atlassian account: `npm install`, set `FORGE_EMAIL` and `FORGE_API_TOKEN`, then `npx @forge/cli@15 lint`.
 
@@ -209,7 +213,7 @@ src/forge/                    Forge adapters: ports, resolvers, actions, trigger
 src/frontend/                 UI Kit panels for portal, dispatch, Confluence
 src/index.js                  Forge entry point. Wiring only.
 skills/frontbox-dispatch/     MCP skill playbook for external agents
-scripts/                      Manifest gate, triage eval, demo mirror
+scripts/                      Manifest gate, 9-step UAT, triage eval, load smoke, interactive mirror
 tests/                        Node test suite for the core and gates
 ```
 

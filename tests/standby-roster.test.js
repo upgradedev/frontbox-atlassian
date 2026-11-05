@@ -47,4 +47,18 @@ test('exhausted roster escalates instead of guessing', () => {
   const lease = createLease({ issueKey: 'GRID-101', crew: only[0], now: T0 });
   const result = failoverIfDue(lease, only, { hazardClass: 'high-voltage', requiredParts: [] }, '2026-12-01T09:16:00.000Z');
   assert.equal(result.lease.status, 'EXHAUSTED');
+  assert.equal(result.lease.version, 2);
+});
+
+test('lease version increments on transition and tracks promotedFromCrewId (Fowler F3/F4)', () => {
+  const lease = createLease({ issueKey: 'GRID-101', crew: roster[0], now: T0 });
+  assert.equal(lease.version, 1);
+  const accepted = acceptLease(lease, 'crew-alpha', '2026-12-01T09:05:00.000Z');
+  assert.equal(accepted.version, 2);
+  assert.equal(accepted.acceptedByCrewId, 'crew-alpha');
+
+  const failover = failoverIfDue(lease, roster, { hazardClass: 'high-voltage', requiredParts: ['fuse-cutout-15kv'] }, '2026-12-01T09:16:00.000Z');
+  assert.equal(failover.lease.version, 2);
+  assert.equal(failover.lease.promotedFromCrewId, 'crew-alpha');
+  assert.throws(() => acceptLease(failover.lease, 'crew-alpha', '2026-12-01T09:20:00.000Z'), /belongs to crew-bravo/);
 });

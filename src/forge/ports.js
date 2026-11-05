@@ -1,5 +1,6 @@
 import { fetchLinkedObjects, pickSopPage } from './team-graph.js';
 import { loadSeed } from './seed.js';
+import { inferHazardClass } from '../frontbox/domain/triage.js';
 
 // Forge adapters for the Reader and Writer ports. Hosted storage only
 // (Runs on Atlassian). The Forge `route` tag is injected from src/index.js
@@ -9,7 +10,7 @@ import { loadSeed } from './seed.js';
 // degrades to the seed or to null. The gate then blocks with a reason.
 
 export const CONFIG_KEY = 'frontbox:config';
-// Site config shape, written by an admin into Forge storage:
+// Site or project-scoped config shape, written by an admin into Forge storage:
 // {
 //   assetsWorkspaceId: string,
 //   assetsAqlTemplate: string with {issueKey} placeholder,
@@ -17,10 +18,24 @@ export const CONFIG_KEY = 'frontbox:config';
 //   evidenceSpaceId: string
 // }
 
+export function scopeOf(keyOrScope) {
+  const raw = String(keyOrScope ?? '').trim().toUpperCase();
+  if (!raw) return 'DEFAULT';
+  const dash = raw.indexOf('-');
+  return dash > 0 ? raw.slice(0, dash) : raw;
+}
+
+const configKey = (scope) => (!scope || scope === 'DEFAULT' ? CONFIG_KEY : CONFIG_KEY + ':' + scopeOf(scope));
 const intakeKey = (issueKey) => 'frontbox:intake:' + issueKey;
+const LATEST_DRAFT_KEY = 'frontbox:intake:latest-draft';
 const leaseKey = (issueKey) => 'frontbox:lease:' + issueKey;
 const LEASE_INDEX_KEY = 'frontbox:leases:index';
+const scopedLeaseIndexKey = (scope) => LEASE_INDEX_KEY + ':' + scopeOf(scope);
 const DEFAULT_AQL = '"Linked Issues" = "{issueKey}"';
+const DEMO_KEYS = new Set([
+  'GRID-101', 'GRID-102', 'GRID-103', 'GRID-104', 'ROAD-201',
+  'AST-TRF-4001', 'AST-FDR-2200', 'AST-SUB-0900', 'AST-SWG-5100', 'AST-VAN-3300',
+]);
 
 export function mapAssetsObject(object) {
   if (!object || typeof object !== 'object') return null;
@@ -64,10 +79,16 @@ export function createForgePorts({ api, store, route }) {
     throw new TypeError('createForgePorts requires the Forge route tag (inject from @forge/api in src/index.js)');
   }
 
-  async function loadConfig() {
-    return (await store.get(CONFIG_KEY)) ?? {};
+  async function loadConfig(keyOrScope) {
+    const scope = scopeOf(keyOrScope);
+    const [base, scoped] = await Promise.all([
+      store.get(CONFIG_KEY),
+      scope !== 'DEFAULT' ? store.get(configKey(scope)) : Promise.resolve(null),
+    ]);
+    return { ...(base ?? {}), ...(scoped ?? {}) };
   }
-  async function seedFallback() {
+  async function seedFallback(key) {
+    if (key && !DEMO_KEYS.has(key)) return null;
     return loadSeed(store);
   }
 
@@ -115,43 +136,57 @@ export function createForgePorts({ api, store, route }) {
         const res = await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}?fields=summary,description,issuetype,priority`, { method: 'GET' });
         if (res.ok) {
           const body = await res.json();
+          const summary = body?.fields?.summary ?? '';
+          const description = typeof body?.fields?.description === 'string' ? body.fields.description : '';
           return {
             issueKey,
-            summary: body?.fields?.summary ?? '',
-            hazardClass: inferHazardClass(body?.fields?.summary ?? ''),
+            summary,
+            hazardClass: inferHazardClass(summary, description),
             assetKeyHint: null,
             source: 'jira',
           };
         }
       } catch { /* fall through to seed */ }
-      const seed = await seedFallback();
+      const seed = await seedFallback(issueKey);
       const hit = seed?.incidents.find((i) => i.issueKey === issueKey);
-      return hit ? { ...hit, source: 'demo-seed' } : null;
+      return hit ? { ...hit, source: 'demo-seed', degradedReason: 'live-lookup-skipped-or-unavailable' } : null;
+    },
+
+    async getConfig(keyOrScope) {
+      return loadConfig(keyOrScope);
     },
 
     async getLinkedAsset(issueKey) {
-      const config = await loadConfig();
+      const config = await loadConfig(issueKey);
       try {
         const live = await liveAsset(issueKey, config);
         if (live) return live;
       } catch { /* fail closed to seed or null below */ }
-      const seed = await seedFallback();
-      if (seed?.assetsByIssue[issueKey]) return seed.assetsByIssue[issueKey];
+      const seed = await seedFallback(issueKey);
+      if (seed?.assetsByIssue[issueKey]) {
+        return { ...seed.assetsByIssue[issueKey], source: 'demo-seed', degradedReason: 'live-lookup-skipped-or-unavailable' };
+      }
       return null;
     },
 
     async getSafetySop(assetKey) {
-      const config = await loadConfig();
+      const config = await loadConfig(assetKey);
       try {
         const live = await liveSop(assetKey, config);
-        if (live) return live;
+        if (live) return { ...live, source: 'confluence-sop' };
       } catch { /* fail closed to seed or null below */ }
-      const seed = await seedFallback();
-      if (seed?.sopsByAsset[assetKey]) return seed.sopsByAsset[assetKey];
+      const seed = await seedFallback(assetKey);
+      if (seed?.sopsByAsset[assetKey]) {
+        return { ...seed.sopsByAsset[assetKey], source: 'demo-seed', degradedReason: 'live-lookup-skipped-or-unavailable' };
+      }
       return null;
     },
 
-    async getRoster() {
+    async getRoster(scope) {
+      if (scope) {
+        const scopedRoster = await store.get('frontbox:roster:' + scopeOf(scope));
+        if (Array.isArray(scopedRoster) && scopedRoster.length > 0) return scopedRoster;
+      }
       const seed = await seedFallback();
       return seed?.roster ?? [];
     },
@@ -164,14 +199,11 @@ export function createForgePorts({ api, store, route }) {
       return (await store.get(leaseKey(issueKey))) ?? null;
     },
 
-    async listLeases() {
-      const index = (await store.get(LEASE_INDEX_KEY)) ?? [];
-      const leases = [];
-      for (const issueKey of index) {
-        const lease = await store.get(leaseKey(issueKey));
-        if (lease) leases.push(lease);
-      }
-      return leases;
+    async listLeases(scope) {
+      const idxKey = scope ? scopedLeaseIndexKey(scope) : LEASE_INDEX_KEY;
+      const index = (await store.get(idxKey)) ?? [];
+      const fetched = await Promise.all(index.map((issueKey) => store.get(leaseKey(issueKey))));
+      return fetched.filter(Boolean);
     },
 
     // Graph enrichment for the panel. Optional by design (partial results).
@@ -182,15 +214,63 @@ export function createForgePorts({ api, store, route }) {
   };
 
   const writer = {
+    async saveConfig(config, scope) {
+      const targetKey = configKey(scope);
+      const existing = (await store.get(targetKey)) ?? {};
+      const next = { ...existing, ...(config ?? {}) };
+      await store.set(targetKey, next);
+      return next;
+    },
     async saveIntakeRecord(issueKey, record) {
       await store.set(intakeKey(issueKey), record);
+      if (String(issueKey).startsWith('DRAFT-')) {
+        await store.set(LATEST_DRAFT_KEY, { draftKey: issueKey, record });
+      }
+    },
+    async bindDraftIntake(issueKey, explicitDraftKey) {
+      const existing = await store.get(intakeKey(issueKey));
+      if (existing) return existing;
+      let draftKey = explicitDraftKey;
+      let draftRecord = draftKey ? await store.get(intakeKey(draftKey)) : null;
+      if (!draftRecord) {
+        const latest = await store.get(LATEST_DRAFT_KEY);
+        if (latest && latest.record) {
+          draftKey = latest.draftKey;
+          draftRecord = latest.record;
+        }
+      }
+      if (!draftRecord) return null;
+      const bound = { ...draftRecord, issueKey, boundFromDraftKey: draftKey };
+      await store.set(intakeKey(issueKey), bound);
+      await store.set(LATEST_DRAFT_KEY, null);
+      return bound;
     },
     async saveLease(lease) {
-      await store.set(leaseKey(lease.issueKey), lease);
-      const index = (await store.get(LEASE_INDEX_KEY)) ?? [];
-      if (!index.includes(lease.issueKey)) {
-        await store.set(LEASE_INDEX_KEY, [...index, lease.issueKey]);
+      const existing = await store.get(leaseKey(lease.issueKey));
+      if (
+        existing
+        && existing.leaseId === lease.leaseId
+        && typeof existing.version === 'number'
+        && typeof lease.version === 'number'
+        && lease.version <= existing.version
+      ) {
+        throw new Error(
+          'Optimistic lock conflict on lease ' + lease.leaseId + ' for ' + lease.issueKey
+          + ': stored version ' + existing.version + ' >= incoming version ' + lease.version,
+        );
       }
+      const sKey = scopedLeaseIndexKey(lease.issueKey);
+      const [globalIndex, scopedIndex] = await Promise.all([
+        store.get(LEASE_INDEX_KEY),
+        store.get(sKey),
+      ]);
+      const nextGlobal = Array.from(new Set([...(globalIndex ?? []), lease.issueKey]));
+      const nextScoped = Array.from(new Set([...(scopedIndex ?? []), lease.issueKey]));
+      await Promise.all([
+        store.set(leaseKey(lease.issueKey), lease),
+        store.set(LEASE_INDEX_KEY, nextGlobal),
+        store.set(sKey, nextScoped),
+      ]);
     },
     async postReceipt(issueKey, text) {
       try {
@@ -210,7 +290,7 @@ export function createForgePorts({ api, store, route }) {
       await store.set('frontbox:assignment:' + issueKey, accountId);
     },
     async publishEvidencePage(issueKey, page) {
-      const config = await loadConfig();
+      const config = await loadConfig(issueKey);
       const spaceId = page.spaceId || config.evidenceSpaceId || '';
       await store.set('frontbox:bundle:' + issueKey, { ...page, spaceId });
       if (!spaceId) {
@@ -240,14 +320,4 @@ export function createForgePorts({ api, store, route }) {
   };
 
   return { reader, writer };
-}
-
-function inferHazardClass(summary) {
-  const text = summary.toLowerCase();
-  if (text.includes('transformer') || text.includes('substation') || text.includes('feeder') || text.includes('voltage')) return 'high-voltage';
-  if (text.includes('collision') || text.includes('stranded')) return 'collision';
-  if (text.includes('outage') || text.includes('power')) return 'outage';
-  if (text.includes('flood')) return 'flooding';
-  if (text.includes('fire')) return 'fire';
-  return 'unknown';
 }

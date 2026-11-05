@@ -1,8 +1,10 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInMemoryPorts, createDispatchService, demoSeed, demoIntake, DEMO_NOW } from '../src/frontbox/index.js';
-import { esc, chip, renderBoardPage } from './board-html.js';
+import { esc, chip, renderBoardPage, buildScenariosPayload } from './board-html.js';
+
+const SCRIPT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'mirror-app.js');
 
 // Static export of the demo mirror for any static host (D-1 prep).
 // Writes temp/site/ by default: index.html plus one JSON file per
@@ -34,7 +36,11 @@ export async function exportMirror(outDir) {
     columns: ['Incident', 'Summary', 'Gate', 'Spoken receipt', 'Data'],
     rows,
   });
+  const roster = await ports.reader.getRoster();
+  const scenarios = await buildScenariosPayload(service, keys, roster);
+  await writeFile(path.join(outDir, 'api', 'scenarios.json'), JSON.stringify(scenarios, null, 2) + '\n', 'utf8');
   await writeFile(path.join(outDir, 'index.html'), html + '\n', 'utf8');
+  await copyFile(SCRIPT_PATH, path.join(outDir, 'mirror-app.js'));
   return { outDir, incidents: keys, files: 1 + keys.length * 2 };
 }
 

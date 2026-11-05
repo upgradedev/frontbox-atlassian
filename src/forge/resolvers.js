@@ -42,6 +42,11 @@ export function createResolver({ service, store, Resolver }) {
     return { lease: result.lease, receiptHash: result.receiptHash };
   });
 
+  resolver.define('acceptLease', async ({ payload }) => {
+    const lease = await service.acceptReservation(payload.issueKey, payload.crewId);
+    return { lease };
+  });
+
   resolver.define('runFailover', async ({ payload }) => {
     const result = await service.runFailover(payload.issueKey);
     return {

@@ -1,17 +1,20 @@
 import http from 'node:http';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInMemoryPorts, createDispatchService, demoSeed, demoIntake } from '../src/frontbox/index.js';
-import { esc, chip, renderBoardPage } from './board-html.js';
+import { esc, chip, renderBoardPage, buildScenariosPayload } from './board-html.js';
 
 // Anonymous judge mirror. Same dispatch service as the Forge app, seeded
 // demo graph, zero accounts. Host this file anywhere static Node runs.
 // The Forge install remains the product; this mirror proves the core.
 
+const SCRIPT_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), 'mirror-app.js');
+
 const SECURITY_HEADERS = {
   'x-content-type-options': 'nosniff',
   'x-frame-options': 'DENY',
-  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+  'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
   'permissions-policy': 'camera=(), microphone=(), geolocation=()',
   'cross-origin-embedder-policy': 'require-corp',
   'cross-origin-resource-policy': 'same-origin',
@@ -34,6 +37,20 @@ export async function createDemoServer() {
       if (url.pathname === '/healthz') {
         res.writeHead(200, { 'content-type': 'text/plain', ...SECURITY_HEADERS });
         res.end('ok');
+        return;
+      }
+      if (url.pathname === '/mirror-app.js') {
+        const js = await readFile(SCRIPT_PATH, 'utf8');
+        res.writeHead(200, { 'content-type': 'application/javascript; charset=utf-8', ...SECURITY_HEADERS });
+        res.end(js);
+        return;
+      }
+      if (url.pathname === '/api/scenarios.json') {
+        const keys = ['GRID-101', 'GRID-102', 'GRID-103', 'GRID-104', 'ROAD-201'];
+        const roster = await ports.reader.getRoster();
+        const scenarios = await buildScenariosPayload(service, keys, roster);
+        res.writeHead(200, { 'content-type': 'application/json', ...SECURITY_HEADERS });
+        res.end(JSON.stringify(scenarios, null, 2));
         return;
       }
       const apiMatch = url.pathname.match(/^\/api\/incidents\/([A-Z]+-\d+)$/);

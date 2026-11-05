@@ -1,6 +1,7 @@
 ---
-name: frontbox-field-dispatch-skill
+name: frontbox-dispatch
 description: Check field dispatch safety, reserve standby crews, fail over unaccepted reservations, and verify citizen evidence for FrontBox incidents in Jira Service Management through the FrontBox MCP tools.
+allowed-tools: verify-safety-sop-and-parts verify-scene-proof-evidence match-and-reserve-crew trigger-standby-failover
 ---
 
 # FrontBox Field Dispatch Skill

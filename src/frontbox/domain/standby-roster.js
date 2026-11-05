@@ -25,6 +25,7 @@ export function createLease({ issueKey, crew, now, acceptWindowMinutes = 15 }) {
     issueKey,
     crewId: crew.crewId,
     status: 'RESERVED',
+    version: 1,
     reservedAt: now,
     acceptBy,
     history: [{ at: now, event: 'RESERVED', crewId: crew.crewId }],
@@ -45,6 +46,8 @@ export function acceptLease(lease, crewId, now) {
   return {
     ...lease,
     status: 'ACCEPTED',
+    version: (lease.version ?? 1) + 1,
+    acceptedByCrewId: crewId,
     acceptedAt: now,
     history: [...lease.history, { at: now, event: 'ACCEPTED', crewId }],
   };
@@ -60,6 +63,7 @@ export function failoverIfDue(lease, roster, requirements, now) {
     const exhausted = {
       ...lease,
       status: 'EXHAUSTED',
+      version: (lease.version ?? 1) + 1,
       history: [...lease.history, { at: now, event: 'EXHAUSTED', crewId: lease.crewId }],
     };
     const receiptBody = { leaseId: lease.leaseId, issueKey: lease.issueKey, fromCrewId: lease.crewId, toCrewId: null, at: now, outcome: 'EXHAUSTED' };
@@ -69,7 +73,9 @@ export function failoverIfDue(lease, roster, requirements, now) {
   const promoted = {
     ...lease,
     crewId: next.crewId,
+    promotedFromCrewId: lease.crewId,
     status: 'RESERVED',
+    version: (lease.version ?? 1) + 1,
     acceptBy,
     history: [
       ...lease.history,

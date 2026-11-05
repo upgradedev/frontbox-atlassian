@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import ForgeReconciler, {
   Box,
   Button,
+  ButtonGroup,
   Checkbox,
   Heading,
   Label,
+  Lozenge,
   Option,
   SectionMessage,
   Select,
@@ -16,8 +18,9 @@ import ForgeReconciler, {
 import { invoke, view } from '@forge/bridge';
 
 // JSM Customer Portal Guided SceneProof and ClaimReady Intake.
-// Citizens get one short guided form. Voice transcript paste covers the
-// Volcan accessible channel; vulnerable flags drive priority routing.
+// Includes 1-click vertical presets, a 3-step self-explaining citizen
+// journey, automatic PII redaction before storage, and Volcan/Vesta P0
+// vulnerable citizen priority routing.
 
 const App = () => {
   const [scenario, setScenario] = useState({ value: 'utility-grid' });
@@ -34,6 +37,44 @@ const App = () => {
   const [error, setError] = useState(null);
   const [draftKey] = useState('DRAFT-' + Date.now());
 
+  const applyPreset = (kind) => {
+    setError(null);
+    if (kind === 'grid') {
+      setScenario({ value: 'utility-grid' });
+      setLocation('Substation 14, Pole 14B, North Sector');
+      setDescription('Transformer bay arcing, contact Nikos at +30 694 555 0199 or nikos@example.gr.');
+      setVoiceTranscript('Sparks on pole 14B, oxygen concentrator running on backup battery.');
+      setPhotoCount('2');
+      setHazardClass({ value: 'high-voltage' });
+      setContactChannel('voice-callback');
+      setElderly(true);
+      setDisability(false);
+      setMedical(true);
+    } else if (kind === 'road') {
+      setScenario({ value: 'roadside-assist' });
+      setLocation('Highway Corridor KM 42 Eastbound shoulder');
+      setDescription('Two-vehicle collision, plate ZXK-9081, call +30 697 111 2233.');
+      setVoiceTranscript('Wheelchair passenger waiting in vehicle on highway shoulder.');
+      setPhotoCount('3');
+      setHazardClass({ value: 'collision' });
+      setContactChannel('sms');
+      setElderly(true);
+      setDisability(true);
+      setMedical(false);
+    } else {
+      setScenario({ value: 'insurance-claims' });
+      setLocation('Ground floor apartment, Ermou 42');
+      setDescription('Basement main pipe burst flooding electrical panel, phone +30 210 555 0144.');
+      setVoiceTranscript('');
+      setPhotoCount('2');
+      setHazardClass({ value: 'flooding' });
+      setContactChannel('sms');
+      setElderly(false);
+      setDisability(false);
+      setMedical(false);
+    }
+  };
+
   const submit = async () => {
     setError(null);
     const intake = {
@@ -42,7 +83,7 @@ const App = () => {
       description,
       voiceTranscript,
       photoCount: Number.parseInt(photoCount, 10) || 0,
-      hasSceneDiagram: false,
+      hasSceneDiagram: scenario.value === 'roadside-assist',
       hazardClass: hazardClass.value,
       contactChannel,
       vulnerable: { elderly, disability, medicalDependency: medical },
@@ -51,9 +92,6 @@ const App = () => {
     try {
       const response = await invoke('submitIntake', { issueKey: draftKey, intake });
       setResult(response);
-      // Best effort: attach the draft link to the created request. The
-      // sealed intake is already stored by invoke, so a submit failure
-      // here must not lose the citizen report.
       try {
         await view.submit({
           fields: [
@@ -74,7 +112,18 @@ const App = () => {
   return (
     <Stack space="space.200">
       <Heading size="small">FrontBox guided incident intake</Heading>
-      <Text>Answer what you can. FrontBox checks completeness before a crew is sent, and people who need help most are routed first.</Text>
+      <Text>
+        Citizen journey: <Lozenge appearance="inprogress">1. Choose vertical or preset</Lozenge>
+        {' '}<Lozenge appearance="new">2. Auto-redact PII (SceneProof)</Lozenge>
+        {' '}<Lozenge appearance={result?.lane === 'P0' ? 'removed' : 'success'}>3. ClaimReady and Priority SLA</Lozenge>
+      </Text>
+      <Text>Answer what you can. FrontBox redacts personal phone numbers, emails, and plates before storage, checks completeness, and routes vulnerable citizens first.</Text>
+      <Heading size="xsmall">Quick fill vertical presets (1-click demo)</Heading>
+      <ButtonGroup>
+        <Button onClick={() => applyPreset('grid')}>Power Grid Outage (P0)</Button>
+        <Button onClick={() => applyPreset('road')}>Roadside Collision (P0)</Button>
+        <Button onClick={() => applyPreset('claims')}>Property Flooding (P1)</Button>
+      </ButtonGroup>
       <Box>
         <Label labelFor="scenario">What happened?</Label>
         <Select id="scenario" value={scenario} onChange={setScenario}>
@@ -130,6 +179,7 @@ const App = () => {
           {result.missing.map((item) => (
             <Text key={item}>Still needed: {item}</Text>
           ))}
+          <Text>SceneProof privacy: {Array.isArray(result.redactions) ? result.redactions.length : 0} PII items redacted before storage.</Text>
           <Text>Evidence seal {result.evidenceHash}</Text>
         </SectionMessage>
       ) : null}

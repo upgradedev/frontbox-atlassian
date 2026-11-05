@@ -30,3 +30,13 @@ export function correlate(reports, threshold = CORRELATION_THRESHOLD) {
   }
   return clusters;
 }
+
+export function inferHazardClass(summary, description = '') {
+  const text = (String(summary ?? '') + ' ' + String(description ?? '')).toLowerCase();
+  if (text.includes('transformer') || text.includes('substation') || text.includes('feeder') || text.includes('voltage') || text.includes('150kv') || text.includes('switchgear')) return 'high-voltage';
+  if (text.includes('collision') || text.includes('stranded')) return 'collision';
+  if (text.includes('outage') || text.includes('power')) return 'outage';
+  if (text.includes('flood')) return 'flooding';
+  if (text.includes('fire')) return 'fire';
+  return 'unknown';
+}

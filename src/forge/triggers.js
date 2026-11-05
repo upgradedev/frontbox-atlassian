@@ -6,6 +6,9 @@ export function createTriggers({ service, writer }) {
   async function triageOnCreate(event) {
     const issueKey = event?.issue?.key;
     if (!issueKey) return { skipped: true, reason: 'Event carried no issue key.' };
+    if (writer && typeof writer.bindDraftIntake === 'function') {
+      await writer.bindDraftIntake(issueKey, event?.issue?.fields?.frontboxDraftKey).catch(() => null);
+    }
     const state = await service.getDispatchState(issueKey).catch(() => null);
     if (!state) return { skipped: true, reason: 'Incident ' + issueKey + ' not visible to FrontBox yet.' };
     const lane = state.routing ? state.routing.lane : 'unrouted (no guided intake yet)';

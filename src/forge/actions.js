@@ -18,9 +18,10 @@ export function createActionHandlers(service) {
 
   async function matchAndReserveCrew({ payload }) {
     const verified = await service.verifySafety(payload.issueKey);
+    const approvedReceiptHash = payload.approvedReceiptHash ?? verified.receiptHash;
     const result = await service.reserveCrew(payload.issueKey, {
       commanderApproved: payload.commanderApproved === true,
-      approvedReceiptHash: verified.receiptHash,
+      approvedReceiptHash,
     });
     return {
       issueKey: payload.issueKey,

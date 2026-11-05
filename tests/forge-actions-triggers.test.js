@@ -29,6 +29,10 @@ test('reserve action refuses without commander approval', async () => {
     () => actions.matchAndReserveCrew({ payload: { issueKey: 'GRID-101', commanderApproved: false } }),
     /commander approval/i,
   );
+  await assert.rejects(
+    () => actions.matchAndReserveCrew({ payload: { issueKey: 'GRID-101', commanderApproved: true, approvedReceiptHash: 'sha256:stale-injected-hash' } }),
+    /Approval does not match/i,
+  );
 });
 
 test('evidence action verifies a sealed intake end to end', async () => {
@@ -111,6 +115,12 @@ test('resolver definitions drive intake, reserve, failover, and publish', async 
   const state = await defs.getDispatchState({ payload: { issueKey: 'GRID-101' } });
   const reserved = await defs.approveAndReserve({ payload: { issueKey: 'GRID-101', commanderApproved: true, approvedReceiptHash: state.gate.receiptHash } });
   assert.equal(reserved.lease.crewId, 'crew-alpha');
+  const accepted = await defs.acceptLease({ payload: { issueKey: 'GRID-101' } });
+  assert.equal(accepted.lease.status, 'ACCEPTED');
+  assert.equal(accepted.lease.crewId, 'crew-alpha');
+
+  // Re-reserve to test failover path as well
+  await defs.approveAndReserve({ payload: { issueKey: 'GRID-101', commanderApproved: true, approvedReceiptHash: state.gate.receiptHash } });
   current = '2026-12-01T09:16:00.000Z';
   const failover = await defs.runFailover({ payload: { issueKey: 'GRID-101' } });
   assert.equal(failover.changed, true);

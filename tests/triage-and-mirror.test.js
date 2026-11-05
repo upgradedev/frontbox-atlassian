@@ -1,7 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { pairScore, correlate } from '../src/frontbox/domain/triage.js';
+import { pairScore, correlate, inferHazardClass } from '../src/frontbox/domain/triage.js';
 import { createDemoServer } from '../scripts/demo-mirror.js';
+
+test('inferHazardClass classifies summary and description in the pure domain (Fowler F5)', () => {
+  assert.equal(inferHazardClass('Routine inspection', 'Arcing near 150kV substation feeder'), 'high-voltage');
+  assert.equal(inferHazardClass('Highway incident', 'Two cars stranded after collision'), 'collision');
+  assert.equal(inferHazardClass('Basement water', 'Severe flood in utility room'), 'flooding');
+  assert.equal(inferHazardClass('Smoke reported', 'Brush fire near pole'), 'fire');
+  assert.equal(inferHazardClass('Dark street', 'Power outage across block'), 'outage');
+  assert.equal(inferHazardClass('General inquiry', 'Question about bill'), 'unknown');
+});
 
 test('same outage reports score over the correlation threshold', () => {
   const score = pairScore(
@@ -35,6 +44,20 @@ test('demo mirror serves health, board, and incident JSON', async () => {
     const html = await board.text();
     assert.ok(html.includes('GRID-103'));
     assert.ok(html.includes('blocked'));
+    assert.ok(html.includes('Atlassian Teamwork Graph'));
+    assert.ok(html.includes('Journey 1'));
+    assert.ok(html.includes('Journey 2'));
+    assert.ok(html.includes('Journey 3'));
+    assert.ok(html.includes('Journey 4'));
+    const scriptRes = await fetch(base + '/mirror-app.js');
+    assert.equal(scriptRes.status, 200);
+    assert.ok(String(scriptRes.headers.get('content-type')).includes('javascript'));
+    const scenariosRes = await fetch(base + '/api/scenarios.json');
+    assert.equal(scenariosRes.status, 200);
+    const scenarios = await scenariosRes.json();
+    assert.equal(scenarios['GRID-101'].gateAllowed, true);
+    assert.equal(scenarios['GRID-103'].gateAllowed, false);
+    assert.equal(scenarios['GRID-104'].gateAllowed, false);
     const api = await fetch(base + '/api/incidents/GRID-101');
     const body = await api.json();
     assert.equal(body.gate.allowed, true);
