@@ -42,7 +42,7 @@ modules:
       resolver:
         function: fb-resolver
       title: FrontBox dispatch and standby failover
-      icon: resource:dispatch-panel;frontbox-icon.svg
+      icon: https://developer.atlassian.com/platform/forge/images/icons/issue-panel-icon.svg
   # Confluence Post-Incident Evidence Bundle macro.
   macro:
     - key: frontbox-evidence-bundle

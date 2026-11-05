@@ -23,7 +23,10 @@ const EGRESS_PATTERNS = [
   { id: 'connect-modules', regex: /^\s*connect:/m },
   { id: 'web-triggers', regex: /webtrigger/i },
   { id: 'endpoint', regex: /^\s*endpoint:/m },
-  { id: 'external-url', regex: /https?:\/\// },
+  // Sole exception: the Atlassian-hosted issue panel icon from the
+  // official Forge tutorials. The browser loads a static icon from
+  // Atlassian infrastructure; the app transmits nothing.
+  { id: 'external-url', regex: /https?:\/\/(?!developer\.atlassian\.com\/platform\/forge\/images\/icons\/issue-panel-icon\.svg)/ },
 ];
 
 export function validateManifestText(text) {
