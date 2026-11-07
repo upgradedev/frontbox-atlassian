@@ -75,7 +75,7 @@ const LIVE_ROSTER = [
     accountId: 'acc-alpha-primary',
     onShift: true,
     distanceKm: 8,
-    certifications: ['ELECTRICAL_HV', 'SUBSTATION_SWITCHING', 'ROADSIDE_RECOVERY'],
+    certifications: ['high-voltage', 'outage', 'collision', 'breakdown'],
     vanParts: ['bushing-150kv-abb', 'gasket-kit-nbr', 'oil-sample-bottle', 'fuse-cutout-15kv', 'insulator-pin-20kv'],
   },
   {
@@ -84,7 +84,7 @@ const LIVE_ROSTER = [
     accountId: 'acc-bravo-standby',
     onShift: true,
     distanceKm: 19,
-    certifications: ['ELECTRICAL_HV', 'SUBSTATION_SWITCHING'],
+    certifications: ['high-voltage', 'outage', 'collision'],
     vanParts: ['bushing-150kv-abb', 'gasket-kit-nbr', 'oil-sample-bottle', 'fuse-cutout-15kv', 'insulator-pin-20kv'],
   },
 ];
@@ -178,7 +178,7 @@ async function run() {
   console.log('[LIVE-5] Created real Jira issue ' + blockedKey + ' (missing part sf6-gas-cart-20l). Waiting for live Forge trigger...');
   try {
     const blockedComment = await waitForForgeTriggerComment(blockedKey, 'FrontBox triage: dispatch BLOCKED for ' + blockedKey);
-    if (!blockedComment.includes('PART_MISSING:sf6-gas-cart-20l') || !blockedComment.includes('Gate receipt sha256:')) {
+    if (!blockedComment.includes('Missing: sf6-gas-cart-20l') || !blockedComment.includes('Gate receipt sha256:')) {
       throw new Error('Unexpected BLOCKED comment content: ' + blockedComment);
     }
     console.log('[LIVE-5] PASS: Live Forge trigger posted on ' + blockedKey + ' -> ' + blockedComment);
@@ -236,8 +236,8 @@ async function run() {
   }
   const readyKey = createReady.body.key;
   console.log('[LIVE-6] Created real Jira issue ' + readyKey + ' (equipped + signed SOP, zero demo-seed). Waiting for live Forge trigger...');
-  const readyComment = await waitForForgeTriggerComment(readyKey, 'FrontBox triage: dispatch READY for ' + readyKey);
-  if (!readyComment.includes('Gate receipt sha256:')) {
+  const readyComment = await waitForForgeTriggerComment(readyKey, 'FrontBox triage: dispatch gate passes for ' + readyKey);
+  if (!readyComment.includes('Gate receipt sha256:') || !readyComment.includes('Commander approval still required')) {
     throw new Error('Unexpected READY comment content: ' + readyComment);
   }
   console.log('[LIVE-6] PASS: Live Forge trigger posted on ' + readyKey + ' -> ' + readyComment);
