@@ -71,3 +71,8 @@ jobs:
             echo "::warning::Confluence install failed. If Confluence is not activated on the UAT site, an org admin must add the Confluence product first, then re-run this workflow. The Jira install above is unaffected."
           fi
           forge install list -e "$FORGE_ENV"
+      - name: Live Cloud UAT (Real Jira Entities + Deployed Forge Trigger)
+        run: node scripts/live-cloud-uat.js
+      - name: Capture recent Forge runtime logs
+        if: always()
+        run: forge logs -e "$FORGE_ENV" --limit 25 || true

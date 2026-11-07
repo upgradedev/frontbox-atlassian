@@ -141,6 +141,7 @@ Every figure below names the command that produces it. Run the command to reprod
 | Zero egress keys, Rovo pairing, and surface wiring in `manifest.yml` | `node scripts/validate-manifest.js` |
 | Domain and service behavior, including Writer refusals without approval | `node --test` |
 | Nine-step end-to-end judge UAT journey across intake, gate, failover, citizen status, bundle, trigger, and HTTP mirror | `node scripts/uat.js` |
+| Live Cloud UAT against the deployed Forge app and real Jira REST API v3 entities (`BLOCKED` and `READY` triggers) | `node scripts/live-cloud-uat.js` |
 | 500-evaluation dispatch gate load smoke budget | `node scripts/load-smoke.js 100` |
 
 The eval fixture is synthetic and says so in its output. It is a regression ruler for the deterministic core, not a field study. No production dispatch data was used.
@@ -170,9 +171,9 @@ Six-pillar self-review (operational excellence, security, reliability, performan
 
 | Pillar | What is in place | Residual gap |
 | --- | --- | --- |
-| Operational excellence | CI runs manifest gate, tests, 9-step UAT, eval, load smoke, CodeQL, OWASP ZAP DAST, and gitleaks on every push; `.github/workflows/forge-deploy.yml` deploys and smoke-tests Jira on `upgradegr.atlassian.net` | Confluence product activation on the UAT site and Developer Console sharing link remain owner console steps |
+| Operational excellence | CI runs manifest gate, tests, 9-step UAT, eval, load smoke, CodeQL, OWASP ZAP DAST, and gitleaks on every push; `.github/workflows/forge-deploy.yml` deploys and runs `scripts/live-cloud-uat.js` against real Jira entities (`BLOCKED` + `READY` triggers) on `upgradegr.atlassian.net` | Confluence product activation on the UAT site and Developer Console sharing link remain owner console steps |
 | Security | Zero egress manifest, project-scoped multi-desk storage isolation (`GRID` vs `ROAD`), redaction before storage, hash-bound approvals, OWASP ZAP baseline in CI | No third-party penetration test against a live Forge tenant |
-| Reliability | Fail-closed gate, idempotent seed, parallel graph reads (`Promise.all`), happy-path crew lease acceptance, and 5-minute lease failover sweep | Live Assets AQL and SOP sign-off reads run behind per-site or per-project admin config in Forge storage (`frontbox:config` / `frontbox:config:<SCOPE>`). Unmapped sites block safely |
+| Reliability | Fail-closed gate, idempotent seed, parallel graph reads (`Promise.all`), happy-path crew lease acceptance, and 5-minute lease failover sweep | Live Assets AQL, Jira Entity Properties (`frontbox-asset`, `frontbox-roster`), and Confluence SOP sign-off reads run before any demo-seed fallback. Unmapped sites block safely |
 | Performance | Gate batch measured by `run_triage_eval.js` (`gateBatchMs=2`) and `load-smoke.js 100` (500 checks in under 100 ms) on every CI run | Multi-thousand concurrent webhook burst testing on a live Jira Cloud site is not yet measured |
 | Cost | Forge hosted compute and storage only. No external services to pay for. Idle cost ESTIMATE $0 per month inside the Forge free allowance (200,000 GB-seconds per app per month; overage $0.000025 per GB-second), checked 2026-11-03 against [Forge platform pricing](https://developer.atlassian.com/platform/forge/forge-platform-pricing/). FrontBox functions run at 256 MB with millisecond gate checks | Utility-scale incident volume not yet modelled past the free allowance. Rovo LLM credits bill separately and depend on agent chat volume |
 | Sustainability | Blocked wasted truck rolls are the core saving | Fuel saving per blocked roll is not yet measured in the field |

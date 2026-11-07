@@ -159,3 +159,81 @@ test('unseeded non-demo issue does not query seed and seeded records carry sourc
   const demoSop = await reader.getSafetySop('AST-TRF-4001');
   assert.equal(demoSop.source, 'demo-seed');
 });
+
+test('live Jira Issue and Project Entity Properties provide real asset, SOP, roster, lane, and assignment without demo-seed fallback', async () => {
+  const store = fakeStore();
+  const putPaths = [];
+  const api = {
+    asApp: () => ({
+      requestJira: async (path, opts = {}) => {
+        const p = String(path);
+        if (opts.method === 'PUT') {
+          putPaths.push(p);
+          return { ok: true, json: async () => ({}) };
+        }
+        if (p.endsWith('/rest/api/3/issue/DEMO-501/properties/frontbox-asset')) {
+          return {
+            ok: true,
+            json: async () => ({
+              key: 'frontbox-asset',
+              value: {
+                assetKey: 'AST-LIVE-501',
+                name: 'Northern Substation Transformer T-04',
+                requiredParts: ['fuse-cutout-15kv'],
+                sop: {
+                  pageId: 'SOP-LIVE-501',
+                  title: 'SOP: 15kV Transformer Lockout/Tagout',
+                  signedByAccountId: 'acc-safety-lead',
+                  signedAt: '2026-10-15T09:00:00Z',
+                  validUntil: '2027-10-15T09:00:00Z',
+                },
+              },
+            }),
+          };
+        }
+        if (p.endsWith('/rest/api/3/project/DEMO/properties/frontbox-roster')) {
+          return {
+            ok: true,
+            json: async () => ({
+              key: 'frontbox-roster',
+              value: {
+                roster: [
+                  {
+                    crewId: 'crew-live-alpha',
+                    displayName: 'Alpha Live Van',
+                    accountId: 'acc-live-alpha',
+                    onShift: true,
+                    distanceKm: 6,
+                    certifications: ['ELECTRICAL_HV'],
+                    vanParts: ['fuse-cutout-15kv'],
+                  },
+                ],
+              },
+            }),
+          };
+        }
+        return { ok: false, status: 404, json: async () => ({}) };
+      },
+      requestConfluence: async () => ({ ok: false, status: 404, json: async () => ({}) }),
+    }),
+    asUser: () => ({ requestTeamworkGraph: async () => { throw new Error('unused'); } }),
+  };
+
+  const { reader, writer } = createForgePorts({ api, store, route: fakeRoute });
+  const asset = await reader.getLinkedAsset('DEMO-501');
+  assert.equal(asset.assetKey, 'AST-LIVE-501');
+  assert.equal(asset.source, 'jira-issue-property');
+
+  const sop = await reader.getSafetySop('AST-LIVE-501');
+  assert.equal(sop.pageId, 'SOP-LIVE-501');
+  assert.equal(sop.source, 'jira-issue-property');
+
+  const roster = await reader.getRoster('DEMO-501');
+  assert.equal(roster.length, 1);
+  assert.equal(roster[0].crewId, 'crew-live-alpha');
+
+  await writer.setPriorityLane('DEMO-501', 'P0');
+  await writer.assignCrew('DEMO-501', 'acc-live-alpha');
+  assert.ok(putPaths.some((p) => p.endsWith('/rest/api/3/issue/DEMO-501/properties/frontbox-lane')));
+  assert.ok(putPaths.some((p) => p.endsWith('/rest/api/3/issue/DEMO-501/properties/frontbox-assignment')));
+});

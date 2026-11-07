@@ -20,13 +20,15 @@ export function createDispatchService({ reader, writer, clock }) {
   // verify step and the reserve step. Approval itself is enforced in
   // reserveCrew, which refuses without the flag and the matching hash.
   async function loadGateContext(issueKey) {
-    const [incident, asset, roster] = await Promise.all([
+    const [incident, asset] = await Promise.all([
       reader.getIncident(issueKey),
       reader.getLinkedAsset(issueKey),
-      reader.getRoster(),
     ]);
     if (!incident) throw new Error('Unknown incident ' + issueKey);
-    const sop = asset ? await reader.getSafetySop(asset.assetKey) : null;
+    const [sop, roster] = await Promise.all([
+      asset ? reader.getSafetySop(asset.assetKey) : Promise.resolve(null),
+      reader.getRoster(issueKey),
+    ]);
     const crew = selectCrew(roster, {
       hazardClass: incident.hazardClass,
       requiredParts: asset ? asset.requiredParts : [],
@@ -113,7 +115,7 @@ export function createDispatchService({ reader, writer, clock }) {
       const [incident, asset, roster] = await Promise.all([
         reader.getIncident(issueKey),
         reader.getLinkedAsset(issueKey),
-        reader.getRoster(),
+        reader.getRoster(issueKey),
       ]);
       const result = failoverIfDue(lease, roster, {
         hazardClass: incident ? incident.hazardClass : 'unknown',

@@ -93,21 +93,44 @@ export function createForgePorts({ api, store, route }) {
   }
 
   async function liveAsset(issueKey, config) {
-    if (!config.assetsWorkspaceId) return null;
-    const template = config.assetsAqlTemplate ?? DEFAULT_AQL;
-    const qlQuery = template.replaceAll('{issueKey}', issueKey);
-    const res = await api.asApp().requestJira(
-      route`/rest/servicedeskapi/assets/workspace/${config.assetsWorkspaceId}/v1/object/aql`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ qlQuery, includeAttributes: true }),
-      },
+    if (config.assetsWorkspaceId) {
+      const template = config.assetsAqlTemplate ?? DEFAULT_AQL;
+      const qlQuery = template.replaceAll('{issueKey}', issueKey);
+      const res = await api.asApp().requestJira(
+        route`/rest/servicedeskapi/assets/workspace/${config.assetsWorkspaceId}/v1/object/aql`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ qlQuery, includeAttributes: true }),
+        },
+      );
+      if (res.ok) {
+        const body = await res.json();
+        const first = (body?.values ?? body?.objectEntries ?? [])[0] ?? null;
+        const mapped = mapAssetsObject(first);
+        if (mapped) return mapped;
+      }
+    }
+    const propRes = await api.asApp().requestJira(
+      route`/rest/api/3/issue/${issueKey}/properties/frontbox-asset`,
+      { method: 'GET' },
     );
-    if (!res.ok) return null;
-    const body = await res.json();
-    const first = (body?.values ?? body?.objectEntries ?? [])[0] ?? null;
-    return mapAssetsObject(first);
+    if (!propRes?.ok) return null;
+    const propBody = await propRes.json();
+    const val = propBody?.value;
+    if (!val || typeof val !== 'object' || !val.assetKey) return null;
+    if (val.sop && typeof val.sop === 'object' && val.sop.pageId) {
+      await store.set('frontbox:sop:' + val.assetKey, { ...val.sop, source: 'jira-issue-property' });
+    }
+    if (Array.isArray(val.roster) && val.roster.length > 0) {
+      await store.set('frontbox:roster:' + scopeOf(issueKey), val.roster);
+    }
+    return {
+      assetKey: String(val.assetKey),
+      name: val.name ?? String(val.assetKey),
+      requiredParts: Array.isArray(val.requiredParts) ? val.requiredParts : [],
+      source: 'jira-issue-property',
+    };
   }
 
   async function liveSop(assetKey, config) {
@@ -174,7 +197,11 @@ export function createForgePorts({ api, store, route }) {
       try {
         const live = await liveSop(assetKey, config);
         if (live) return { ...live, source: 'confluence-sop' };
-      } catch { /* fail closed to seed or null below */ }
+      } catch { /* fail closed to stored or seed below */ }
+      const storedSop = await store.get('frontbox:sop:' + assetKey);
+      if (storedSop && storedSop.pageId) {
+        return { ...storedSop, source: storedSop.source ?? 'jira-issue-property' };
+      }
       const seed = await seedFallback(assetKey);
       if (seed?.sopsByAsset[assetKey]) {
         return { ...seed.sopsByAsset[assetKey], source: 'demo-seed', degradedReason: 'live-lookup-skipped-or-unavailable' };
@@ -184,8 +211,25 @@ export function createForgePorts({ api, store, route }) {
 
     async getRoster(scope) {
       if (scope) {
-        const scopedRoster = await store.get('frontbox:roster:' + scopeOf(scope));
+        const projKey = scopeOf(scope);
+        const scopedRoster = await store.get('frontbox:roster:' + projKey);
         if (Array.isArray(scopedRoster) && scopedRoster.length > 0) return scopedRoster;
+        try {
+          const res = await api.asApp().requestJira(
+            route`/rest/api/3/project/${projKey}/properties/frontbox-roster`,
+            { method: 'GET' },
+          );
+          if (res?.ok) {
+            const body = await res.json();
+            const list = Array.isArray(body?.value?.roster)
+              ? body.value.roster
+              : (Array.isArray(body?.value) ? body.value : null);
+            if (list && list.length > 0) {
+              await store.set('frontbox:roster:' + projKey, list);
+              return list;
+            }
+          }
+        } catch { /* fall through to seed */ }
       }
       const seed = await seedFallback();
       return seed?.roster ?? [];
@@ -285,9 +329,27 @@ export function createForgePorts({ api, store, route }) {
     },
     async setPriorityLane(issueKey, lane) {
       await store.set('frontbox:lane:' + issueKey, lane);
+      if (!String(issueKey).startsWith('DRAFT-')) {
+        try {
+          await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}/properties/frontbox-lane`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ lane }),
+          });
+        } catch { /* best-effort mirror to Jira issue entity property */ }
+      }
     },
     async assignCrew(issueKey, accountId) {
       await store.set('frontbox:assignment:' + issueKey, accountId);
+      if (!String(issueKey).startsWith('DRAFT-')) {
+        try {
+          await api.asApp().requestJira(route`/rest/api/3/issue/${issueKey}/properties/frontbox-assignment`, {
+            method: 'PUT',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ accountId }),
+          });
+        } catch { /* best-effort mirror to Jira issue entity property */ }
+      }
     },
     async publishEvidencePage(issueKey, page) {
       const config = await loadConfig(issueKey);
